@@ -1,0 +1,18 @@
+{
+  "name": "@portable-codex/electron-companion",
+  "version": "0.1.0",
+  "description": "Portable Codex native Windows companion (WPF/.NET 8)",
+  "author": "OpenAI",
+  "scripts": {
+    "test": "node -e \"process.exit(0)\"",
+    "build": "npm run native:build",
+    "dev": "npm run native:run",
+    "native:restore": "dotnet restore native\\PortableCodex.Native.sln",
+    "native:build": "dotnet build native\\PortableCodex.Native.sln -c Release",
+    "native:run": "dotnet run --project native\\PortableCodex.Native\\PortableCodex.Native.csproj",
+    "native:publish": "dotnet publish native\\PortableCodex.Native\\PortableCodex.Native.csproj -c Release -r win-x64 -o release-native",
+    "build:exe": "npm run native:publish",
+    "dist:win": "npm run native:publish",
+    "start": "npm run native:run"
+  }
+}

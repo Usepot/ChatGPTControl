@@ -1,0 +1,856 @@
+<Window x:Class="PortableCodex.Native.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        Title="Portable Codex"
+        Width="1100"
+        Height="780"
+        MinWidth="860"
+        MinHeight="600"
+        Background="{DynamicResource AppBg}"
+        FontFamily="Segoe UI"
+        TextElement.Foreground="{DynamicResource PrimaryFg}"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="14"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        TextOptions.TextHintingMode="Fixed"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ═══════════════════ ROW 0: Top status bar ═══════════════════ -->
+        <Border Grid.Row="0" Padding="20,8" Background="{DynamicResource CardMutedBg}" BorderBrush="{DynamicResource SoftBorder}" BorderThickness="0,0,0,1">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding CurrentStep}" Value="4">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding CurrentStep}" Value="5">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left" FontWeight="SemiBold" FontSize="13" Foreground="{DynamicResource PrimaryFg}"
+                           VerticalAlignment="Center" Text="Portable Codex" />
+
+                <Menu DockPanel.Dock="Left" Margin="16,0,0,0" VerticalAlignment="Center" Background="Transparent" BorderThickness="0">
+                    <MenuItem Header="Options" Foreground="{DynamicResource PrimaryFg}" Padding="8,2">
+                        <MenuItem Header="Use multithreaded file search"
+                                  IsCheckable="True"
+                                  IsChecked="{Binding MultithreadedFileSearches, Mode=TwoWay}" />
+                        <MenuItem Header="Dark mode"
+                                  IsCheckable="True"
+                                  IsChecked="{Binding IsDarkMode, Mode=TwoWay}" />
+                    </MenuItem>
+                </Menu>
+
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="7" Height="7" Margin="0,0,5,0"
+                             Fill="{Binding LocalRelayState, Converter={StaticResource StatusDot}}" />
+                    <TextBlock FontSize="12" Foreground="{DynamicResource MutedFg}" Text="{Binding LocalRelayMessage}" />
+
+                    <TextBlock Text="  ·  " Foreground="{DynamicResource MutedFg}" FontSize="12" />
+
+                    <Ellipse Width="7" Height="7" Margin="0,0,5,0"
+                             Fill="{Binding RelayConnectionState, Converter={StaticResource StatusDot}}" />
+                    <TextBlock FontSize="12" Foreground="{DynamicResource MutedFg}" Text="{Binding RelayConnectionMessage}" />
+
+                    <TextBlock Text="  ·  " Foreground="{DynamicResource MutedFg}" FontSize="12" />
+
+                    <Ellipse Width="7" Height="7" Margin="0,0,5,0"
+                             Fill="{Binding TunnelState, Converter={StaticResource StatusDot}}" />
+                    <TextBlock FontSize="12" Foreground="{DynamicResource MutedFg}" Text="{Binding TunnelBarText}" />
+                </StackPanel>
+
+                <TextBlock />
+            </DockPanel>
+        </Border>
+
+        <!-- ═══════════════════ ROW 1: Step indicator ═══════════════════ -->
+        <Border Grid.Row="1" Padding="0,16" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SoftBorder}" BorderThickness="0,0,0,1">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding CurrentStep}" Value="4">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding CurrentStep}" Value="5">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <!-- Step 0 -->
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="28" Height="28"
+                             Fill="{Binding CurrentStep, Converter={StaticResource StepBrush}, ConverterParameter=0}" />
+                    <TextBlock Text="Setup" Margin="8,0,0,0" VerticalAlignment="Center" FontSize="13"
+                               Foreground="{Binding CurrentStep, Converter={StaticResource StepForeground}, ConverterParameter=0}" />
+                </StackPanel>
+                <Rectangle Width="36" Height="2" Margin="12,0" VerticalAlignment="Center"
+                           Fill="{Binding CurrentStep, Converter={StaticResource StepLineBrush}, ConverterParameter=0}" />
+
+                <!-- Step 1 -->
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="28" Height="28"
+                             Fill="{Binding CurrentStep, Converter={StaticResource StepBrush}, ConverterParameter=1}" />
+                    <TextBlock Text="Create GPT" Margin="8,0,0,0" VerticalAlignment="Center" FontSize="13"
+                               Foreground="{Binding CurrentStep, Converter={StaticResource StepForeground}, ConverterParameter=1}" />
+                </StackPanel>
+                <Rectangle Width="36" Height="2" Margin="12,0" VerticalAlignment="Center"
+                           Fill="{Binding CurrentStep, Converter={StaticResource StepLineBrush}, ConverterParameter=1}" />
+
+                <!-- Step 2 -->
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="28" Height="28"
+                             Fill="{Binding CurrentStep, Converter={StaticResource StepBrush}, ConverterParameter=2}" />
+                    <TextBlock Text="Add Action" Margin="8,0,0,0" VerticalAlignment="Center" FontSize="13"
+                               Foreground="{Binding CurrentStep, Converter={StaticResource StepForeground}, ConverterParameter=2}" />
+                </StackPanel>
+                <Rectangle Width="36" Height="2" Margin="12,0" VerticalAlignment="Center"
+                           Fill="{Binding CurrentStep, Converter={StaticResource StepLineBrush}, ConverterParameter=2}" />
+
+                <!-- Step 3 -->
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="28" Height="28"
+                             Fill="{Binding CurrentStep, Converter={StaticResource StepBrush}, ConverterParameter=3}" />
+                    <TextBlock Text="Workspaces" Margin="8,0,0,0" VerticalAlignment="Center" FontSize="13"
+                               Foreground="{Binding CurrentStep, Converter={StaticResource StepForeground}, ConverterParameter=3}" />
+                </StackPanel>
+                <Rectangle Width="36" Height="2" Margin="12,0" VerticalAlignment="Center"
+                           Fill="{Binding CurrentStep, Converter={StaticResource StepLineBrush}, ConverterParameter=3}" />
+
+                <!-- Step 4 -->
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="28" Height="28"
+                             Fill="{Binding CurrentStep, Converter={StaticResource StepBrush}, ConverterParameter=4}" />
+                    <TextBlock Text="Ready" Margin="8,0,0,0" VerticalAlignment="Center" FontSize="13"
+                               Foreground="{Binding CurrentStep, Converter={StaticResource StepForeground}, ConverterParameter=4}" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══════════════════ ROW 2: Step content ═══════════════════ -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid>
+                <!-- WIZARD STEPS (0-3) -->
+                <Grid Margin="24,20,24,12" MaxWidth="760" HorizontalAlignment="Center">
+                    <Grid.Style>
+                        <Style TargetType="Grid">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CurrentStep}" Value="4">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CurrentStep}" Value="5">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Grid.Style>
+
+                <!-- ─────────── STEP 0: Setup ─────────── -->
+                <StackPanel Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=0}">
+
+                    <TextBlock FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}"
+                               Text="Setting up Portable Codex" />
+                    <TextBlock FontSize="15" Foreground="{DynamicResource MutedFg}" Margin="0,6,0,28"
+                               Text="Connect your local relay through Tailscale Funnel." />
+
+                    <!-- Credentials -->
+                    <DockPanel Margin="0,0,0,18">
+                        <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Margin="0,5,12,0" VerticalAlignment="Top"
+                                 Fill="{Binding CredentialsReady, Converter={StaticResource StatusDot}, ConverterParameter=ready}" />
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Generating credentials..." />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding CredentialsReady}" Value="True">
+                                                <Setter Property="Text" Value="Credentials ready" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock FontSize="13" Foreground="{DynamicResource TertiaryFg}" Margin="0,2,0,0"
+                                       Text="{Binding DeviceId}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <!-- Local relay -->
+                    <DockPanel Margin="0,0,0,18">
+                        <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Margin="0,5,12,0" VerticalAlignment="Top"
+                                 Fill="{Binding LocalRelayState, Converter={StaticResource StatusDot}}" />
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Starting local relay..." />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding RelayReady}" Value="True">
+                                                <Setter Property="Text" Value="Local relay running" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock FontSize="13" Foreground="{DynamicResource TertiaryFg}" Margin="0,2,0,0"
+                                       Text="{Binding LocalRelayMessage}" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <!-- Funnel -->
+                    <DockPanel Margin="0,0,0,18">
+                        <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Margin="0,5,12,0" VerticalAlignment="Top"
+                                 Fill="{Binding TunnelState, Converter={StaticResource StatusDot}}" />
+                        <StackPanel>
+                            <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Waiting to connect..." />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding TunnelReady}" Value="True">
+                                                <Setter Property="Text" Value="Connected to ChatGPT" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding TunnelState}" Value="starting">
+                                                <Setter Property="Text" Value="Configuring Tailscale Funnel..." />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding TunnelState}" Value="not_found">
+                                                <Setter Property="Text" Value="Install Tailscale" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding TunnelState}" Value="login_required">
+                                                <Setter Property="Text" Value="Sign in to Tailscale" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding TunnelState}" Value="approval_required">
+                                                <Setter Property="Text" Value="Approve Funnel access" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding TunnelState}" Value="error">
+                                                <Setter Property="Text" Value="Funnel error" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock FontSize="13" Foreground="{DynamicResource TertiaryFg}" Margin="0,2,0,0"
+                                       Text="{Binding TunnelMessage}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Border Margin="0,8,0,18" Padding="16" Background="{DynamicResource CardMutedBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="10">
+                        <StackPanel>
+                            <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}"
+                                       Text="Connect with Tailscale Funnel" />
+                            <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" Margin="0,4,0,14" TextWrapping="Wrap"
+                                       Text="{Binding TunnelModeSummary}" />
+
+                            <!-- Install Tailscale section (shown when not found) -->
+                            <StackPanel Visibility="{Binding TunnelState, Converter={StaticResource StateVisibility}, ConverterParameter=not_found}">
+                                <TextBlock FontSize="12" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,8" TextWrapping="Wrap"
+                                           Text="Tailscale is not installed. Click below to install it automatically or visit https://tailscale.com/download." />
+                                <Button Style="{StaticResource PrimaryBtn}" Margin="0,0,0,12"
+                                        Content="Install Tailscale"
+                                        Command="{Binding InstallTailscaleCommand}" />
+                            </StackPanel>
+
+                            <!-- Normal flow (shown when Tailscale is found) -->
+                            <StackPanel Visibility="{Binding TunnelState, Converter={StaticResource StateVisibilityInverted}, ConverterParameter=not_found}">
+                                <TextBlock FontSize="12" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,6" TextWrapping="Wrap"
+                                           Text="1) Install/open Tailscale and sign in so this device joins your tailnet." />
+                                <TextBlock FontSize="12" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,10" TextWrapping="Wrap"
+                                           Text="2) Click Connect to Tailscale. The app starts Funnel and waits for any one-time approval." />
+
+                                <DockPanel Margin="0,0,0,12"
+                                           Visibility="{Binding TunnelReady, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock DockPanel.Dock="Left" FontSize="12" Foreground="{DynamicResource MutedFg}" VerticalAlignment="Center"
+                                               Text="Public URL: " />
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostBtn}" FontSize="12"
+                                            Content="{Binding TunnelCopiedLabel}" Command="{Binding CopyTunnelUrlCommand}" />
+                                    <TextBlock FontSize="12" Foreground="{DynamicResource PrimaryFg}"
+                                               FontFamily="Cascadia Code, Consolas"
+                                               Text="{Binding TunnelUrl}" TextTrimming="CharacterEllipsis" />
+                                </DockPanel>
+
+                                <Button Style="{StaticResource SecondaryBtn}"
+                                        Content="Connect to Tailscale"
+                                        Command="{Binding ApplyTunnelSettingsCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Error banner -->
+                    <TextBlock Foreground="#EF4444" FontSize="13" Margin="0,4,0,0"
+                               Text="{Binding ErrorBanner}" TextWrapping="Wrap">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ErrorBanner}" Value="">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- ─────────── STEP 1: Create GPT ─────────── -->
+                <StackPanel Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=1}">
+
+                    <TextBlock FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}"
+                               Text="Create your Custom GPT" />
+                    <TextBlock FontSize="15" Foreground="{DynamicResource MutedFg}" Margin="0,6,0,28"
+                               Text="Follow these steps in ChatGPT to create and configure your GPT." />
+
+                    <StackPanel Margin="0,0,0,24">
+                        <TextBlock FontSize="15" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,10" TextWrapping="Wrap">
+                            <Run FontWeight="SemiBold" Foreground="#3B82F6">1.</Run>
+                            <Run>  Go to</Run>
+                            <Run FontWeight="SemiBold">chatgpt.com/gpts</Run>
+                            <Run>and click</Run>
+                            <Run FontWeight="SemiBold">"Create"</Run>
+                        </TextBlock>
+
+                        <Button Style="{StaticResource GhostBtn}" HorizontalAlignment="Left" Margin="0,0,0,20"
+                                Content="Open GPT Builder in browser →" Command="{Binding OpenGptBuilderCommand}" />
+
+                        <TextBlock FontSize="15" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,10" TextWrapping="Wrap">
+                            <Run FontWeight="SemiBold" Foreground="#3B82F6">2.</Run>
+                            <Run>  Switch to the</Run>
+                            <Run FontWeight="SemiBold">"Configure"</Run>
+                            <Run>tab</Run>
+                        </TextBlock>
+
+                        <TextBlock FontSize="15" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,8" TextWrapping="Wrap">
+                            <Run FontWeight="SemiBold" Foreground="#3B82F6">3.</Run>
+                            <Run>  In the</Run>
+                            <Run FontWeight="SemiBold">Instructions</Run>
+                            <Run>field, paste this default system prompt:</Run>
+                        </TextBlock>
+
+                        <Border Margin="0,4,0,24"
+                                Background="{DynamicResource CardBg}"
+                                BorderBrush="{DynamicResource MutedFg}"
+                                BorderThickness="1"
+                                CornerRadius="10">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" Opacity="0.06" BlurRadius="12" ShadowDepth="2" />
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="14,10,10,8">
+                                    <TextBlock DockPanel.Dock="Left"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource MutedFg}"
+                                               VerticalAlignment="Center"
+                                               Text="Default system prompt" />
+                                    <Button DockPanel.Dock="Right"
+                                            Style="{StaticResource GhostBtn}"
+                                            Content="Copy"
+                                            Command="{Binding CopyInstructionsCommand}" />
+                                    <TextBlock />
+                                </DockPanel>
+
+                                <Border Grid.Row="1"
+                                        Background="{DynamicResource CodeBg}"
+                                        BorderBrush="{DynamicResource SubtleBorder}"
+                                        BorderThickness="0,1,0,0"
+                                        CornerRadius="0,0,10,10">
+                                    <TextBox Style="{StaticResource CodeBox}"
+                                             Background="Transparent"
+                                             MaxHeight="180"
+                                             Padding="16,14"
+                                             VerticalScrollBarVisibility="Auto"
+                                             Text="{Binding GptInstructions, Mode=OneWay}" />
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <TextBlock FontSize="15" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,6" TextWrapping="Wrap">
+                            <Run FontWeight="SemiBold" Foreground="#3B82F6">4.</Run>
+                            <Run>  Under</Run>
+                            <Run FontWeight="SemiBold">Capabilities</Run><Run>, enable:</Run>
+                        </TextBlock>
+
+                        <StackPanel Margin="28,4,0,0">
+                            <TextBlock FontSize="14" Foreground="{DynamicResource SecondaryFg}" Margin="0,4">• Web Search</TextBlock>
+                            <TextBlock FontSize="14" Foreground="{DynamicResource SecondaryFg}" Margin="0,4">• Code Interpreter</TextBlock>
+                            <TextBlock FontSize="14" Foreground="{DynamicResource SecondaryFg}" Margin="0,4">• Canvas</TextBlock>
+                            <TextBlock FontSize="14" Foreground="{DynamicResource SecondaryFg}" Margin="0,4">• Image Generation</TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- ─────────── STEP 2: Configure Action ─────────── -->
+                <StackPanel Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=2}">
+
+                    <TextBlock FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}"
+                               Text="Configure the Action" />
+                    <TextBlock FontSize="15" Foreground="{DynamicResource MutedFg}" Margin="0,6,0,28"
+                               Text="Connect your GPT to Portable Codex via an Action." />
+
+                    <!-- Step: Create new action -->
+                    <TextBlock FontSize="15" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,12" TextWrapping="Wrap">
+                        <Run FontWeight="SemiBold" Foreground="#3B82F6">1.</Run>
+                        <Run>  Scroll down and click</Run>
+                        <Run FontWeight="SemiBold">"Create new action"</Run>
+                    </TextBlock>
+
+                    <!-- Step: Paste schema -->
+                    <TextBlock FontSize="15" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,8" TextWrapping="Wrap">
+                        <Run FontWeight="SemiBold" Foreground="#3B82F6">2.</Run>
+                        <Run>  In the</Run>
+                        <Run FontWeight="SemiBold">Schema</Run>
+                        <Run>field, paste the</Run>
+                        <Run FontWeight="SemiBold">OpenAPI JSON</Run>
+                        <Run>below. If you host the schema from your relay, use</Run>
+                        <Run FontWeight="SemiBold">/openapi.yaml</Run>
+                        <Run>or</Run>
+                        <Run FontWeight="SemiBold">/docs/openapi.yaml</Run>
+                        <Run>; the relay fills in the public URL automatically:</Run>
+                    </TextBlock>
+
+                    <Grid Margin="0,0,0,20">
+                        <TextBox Style="{StaticResource CodeBox}"
+                                 MaxHeight="140"
+                                 VerticalScrollBarVisibility="Auto"
+                                 Text="{Binding MinifiedOpenApiSchema, Mode=OneWay}" />
+                        <Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
+                                Style="{StaticResource GhostBtn}"
+                                Content="{Binding SchemaCopiedLabel}"
+                                Command="{Binding CopySchemaCommand}" />
+                    </Grid>
+
+                    <!-- Step: Authentication -->
+                    <TextBlock FontSize="15" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,6" TextWrapping="Wrap">
+                        <Run FontWeight="SemiBold" Foreground="#3B82F6">3.</Run>
+                        <Run>  Click</Run>
+                        <Run FontWeight="SemiBold">"Authentication"</Run>
+                        <Run>and set:</Run>
+                    </TextBlock>
+
+                    <StackPanel Margin="28,0,0,12">
+                        <TextBlock FontSize="14" Foreground="{DynamicResource SecondaryFg}" Margin="0,3">• Authentication Type: <Run FontWeight="SemiBold">API Key</Run></TextBlock>
+                        <TextBlock FontSize="14" Foreground="{DynamicResource SecondaryFg}" Margin="0,3">• Auth Type: <Run FontWeight="SemiBold">Bearer</Run></TextBlock>
+                    </StackPanel>
+
+                    <!-- Step: Paste token -->
+                    <TextBlock FontSize="15" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,8" TextWrapping="Wrap">
+                        <Run FontWeight="SemiBold" Foreground="#3B82F6">4.</Run>
+                        <Run>  Paste this token as the API Key:</Run>
+                    </TextBlock>
+
+                    <Grid Margin="0,0,0,20">
+                        <TextBox Style="{StaticResource CodeBox}"
+                                 Text="{Binding GptApiToken, Mode=OneWay}" />
+                        <Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,4,0"
+                                Style="{StaticResource GhostBtn}"
+                                Content="{Binding TokenCopiedLabel}"
+                                Command="{Binding CopyAuthTokenCommand}" />
+                    </Grid>
+
+                    <!-- Step: Save -->
+                    <TextBlock FontSize="15" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,0" TextWrapping="Wrap">
+                        <Run FontWeight="SemiBold" Foreground="#3B82F6">5.</Run>
+                        <Run>  Click</Run>
+                        <Run FontWeight="SemiBold">"Save"</Run>
+                        <Run>to finish the action configuration</Run>
+                    </TextBlock>
+                </StackPanel>
+
+                <!-- ─────────── STEP 3: Workspaces ─────────── -->
+                <StackPanel Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=3}">
+
+                    <TextBlock FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}"
+                               Text="Set up Workspaces" />
+                    <TextBlock FontSize="15" Foreground="{DynamicResource MutedFg}" Margin="0,6,0,24" TextWrapping="Wrap"
+                               Text="Add folders that your GPT can read and write to. Only these directories will be accessible." />
+
+                    <Button Style="{StaticResource SecondaryBtn}" HorizontalAlignment="Left" Margin="0,0,0,16"
+                            Content="+ Add folder" Command="{Binding AddWorkspaceCommand}" />
+
+                    <CheckBox Margin="0,0,0,16" FontSize="14" Foreground="{DynamicResource SecondaryFg}"
+                              IsChecked="{Binding ImportCodexCliWorkspaces}"
+                              Content="Automatically copy workspaces from Codex CLI" />
+
+                    <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,6"
+                               Visibility="{Binding HasWorkspaces, Converter={StaticResource BoolToVis}}"
+                               Text="Current workspace" />
+                    <ComboBox Margin="0,0,0,16" FontSize="13"
+                              ItemsSource="{Binding CurrentWorkspaceChoices}"
+                              SelectedItem="{Binding CurrentWorkspace, Mode=TwoWay}"
+                              Visibility="{Binding HasWorkspaces, Converter={StaticResource BoolToVis}}" />
+
+                    <Button Style="{StaticResource GhostBtn}" HorizontalAlignment="Left" Margin="0,0,0,8"
+                            Content="{Binding ViewAllWorkspacesButtonText}"
+                            Command="{Binding ViewAllWorkspacesCommand}"
+                            Visibility="{Binding HasWorkspaces, Converter={StaticResource BoolToVis}}" />
+
+                    <TextBlock FontSize="13" Foreground="{DynamicResource TertiaryFg}" Margin="0,8,0,0"
+                               Visibility="{Binding HasWorkspaces, Converter={StaticResource InverseBoolToVis}}"
+                               Text="No workspaces added yet. You can add them later." />
+
+                    <CheckBox Margin="0,24,0,0" FontSize="14" Foreground="{DynamicResource SecondaryFg}"
+                              IsChecked="{Binding RequireApprovalForWrites}"
+                              Content="Require approval for write, patch, delete, and command operations" />
+                </StackPanel>
+                
+                </Grid>
+
+                <!-- ─────────── STEP 4: Ready Dashboard ─────────── -->
+                <Grid Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=4}" Margin="40,32,40,24" MaxWidth="1200" HorizontalAlignment="Stretch">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="340" />
+                        <ColumnDefinition Width="48" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left Column: Status & Settings -->
+                    <StackPanel Grid.Column="0">
+                        <!-- Hero Header -->
+                        <DockPanel Margin="0,0,0,16">
+                            <TextBlock DockPanel.Dock="Left" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}"
+                                       VerticalAlignment="Center" Text="Portable Codex" />
+                            <Menu DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Background="Transparent" BorderThickness="0">
+                                <MenuItem Header="⚙ Options" Foreground="{DynamicResource PrimaryFg}" Padding="8,4">
+                                    <MenuItem Header="Use multithreaded file search"
+                                              IsCheckable="True"
+                                              IsChecked="{Binding MultithreadedFileSearches, Mode=TwoWay}" />
+                                    <MenuItem Header="Dark mode"
+                                              IsCheckable="True"
+                                              IsChecked="{Binding IsDarkMode, Mode=TwoWay}" />
+                                </MenuItem>
+                            </Menu>
+                            <TextBlock />
+                        </DockPanel>
+
+                        <TextBlock FontSize="15" Foreground="{DynamicResource MutedFg}" Margin="0,0,0,32" TextWrapping="Wrap"
+                                   Text="Portable Codex is running securely in the background. Open ChatGPT to start using your GPT." />
+
+                        <!-- Connection Card -->
+                        <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,0,24">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" Opacity="0.03" BlurRadius="10" ShadowDepth="2" />
+                            </Border.Effect>
+                            <StackPanel>
+                                <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" Margin="0,0,0,20" Text="Connection Status" />
+                                
+                                <DockPanel Margin="0,0,0,16">
+                                    <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Margin="0,4,12,0" VerticalAlignment="Top"
+                                             Fill="{Binding RelayConnectionState, Converter={StaticResource StatusDot}}" />
+                                    <StackPanel>
+                                        <TextBlock FontSize="14" FontWeight="Medium" Foreground="{DynamicResource SecondaryFg}" Text="Relay Server" />
+                                        <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" Text="{Binding RelayConnectionMessage}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <DockPanel Margin="0,0,0,16" Visibility="{Binding TunnelReady, Converter={StaticResource BoolToVis}}">
+                                    <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Margin="0,4,12,0" VerticalAlignment="Top"
+                                             Fill="{Binding TunnelState, Converter={StaticResource StatusDot}}" />
+                                    <StackPanel>
+                                        <TextBlock FontSize="14" FontWeight="Medium" Foreground="{DynamicResource SecondaryFg}" Text="Tunnel" />
+                                        <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" FontFamily="Cascadia Code, Consolas" Text="{Binding TunnelUrl}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                        <Button Margin="0,6,0,0" HorizontalAlignment="Left" Style="{StaticResource GhostBtn}" FontSize="12"
+                                                Content="{Binding TunnelCopiedLabel}" Command="{Binding CopyTunnelUrlCommand}" />
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <DockPanel>
+                                    <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Margin="0,4,12,0" VerticalAlignment="Top"
+                                             Fill="#10B981" />
+                                    <StackPanel>
+                                        <TextBlock FontSize="14" FontWeight="Medium" Foreground="{DynamicResource SecondaryFg}" Text="Device ID" />
+                                        <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" Text="{Binding DeviceId}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Workspaces Card -->
+                        <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,0,32">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" Opacity="0.03" BlurRadius="10" ShadowDepth="2" />
+                            </Border.Effect>
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,20">
+                                    <TextBlock DockPanel.Dock="Left" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" VerticalAlignment="Center" Text="Workspaces" />
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostBtn}" FontSize="13" HorizontalAlignment="Right"
+                                            Content="+ Add Folder" Command="{Binding AddWorkspaceCommand}" />
+                                    <TextBlock />
+                                </DockPanel>
+
+                                <DockPanel Margin="0,0,0,16" Visibility="{Binding HasWorkspaces, Converter={StaticResource BoolToVis}}">
+                                    <ComboBox FontSize="14" HorizontalAlignment="Stretch"
+                                              ItemsSource="{Binding CurrentWorkspaceChoices}"
+                                              SelectedItem="{Binding CurrentWorkspace, Mode=TwoWay}" />
+                                </DockPanel>
+
+                                <TextBlock FontSize="13" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,16"
+                                           Text="No workspaces added. Add a folder to let ChatGPT read and write to it." TextWrapping="Wrap"
+                                           Visibility="{Binding HasWorkspaces, Converter={StaticResource InverseBoolToVis}}" />
+
+                                <CheckBox FontSize="13" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,12"
+                                          IsChecked="{Binding ImportCodexCliWorkspaces}"
+                                          Content="Automatically sync Codex CLI" />
+                                
+                                <Button Style="{StaticResource GhostBtn}" FontSize="13" HorizontalAlignment="Left"
+                                        Content="Allow full system access" Command="{Binding TrustWholeSystemCommand}" />
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Return to Setup -->
+                        <Button Style="{StaticResource GhostBtn}" HorizontalAlignment="Left" Foreground="{DynamicResource MutedFg}"
+                                Content="Re-run setup wizard" Command="{Binding ReturnToSetupCommand}" />
+                    </StackPanel>
+
+                    <!-- Right Column: Activity Log -->
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <DockPanel Grid.Row="0" Margin="0,0,0,16">
+                            <TextBlock DockPanel.Dock="Left" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}"
+                                       VerticalAlignment="Center" Text="Activity Log" />
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" VerticalAlignment="Center" Margin="0,0,8,0" Text="Filter:" />
+                                <ComboBox Width="120" FontSize="13" ItemsSource="{Binding LogFilters}" SelectedItem="{Binding LogFilter}" />
+                            </StackPanel>
+                            <TextBlock />
+                        </DockPanel>
+
+                        <Border Grid.Row="1" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="12"
+                                MaxHeight="{Binding ActivityLogMaxHeight}">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#000000" Opacity="0.03" BlurRadius="10" ShadowDepth="2" />
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions><Border Grid.Row="0" Margin="12,12,12,0" Padding="12,10" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SuccessSubtleBorder}" BorderThickness="1" CornerRadius="10" Visibility="{Binding IsFileSearchInProgress, Converter={StaticResource BoolToVis}}" VerticalAlignment="Top">
+                                    <StackPanel>
+                                        <DockPanel Margin="0,0,0,8">
+                                            <TextBlock DockPanel.Dock="Left" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource SuccessSubtleFg}" Text="File search in progress" />
+                                            <TextBlock DockPanel.Dock="Right" FontSize="12" Foreground="{DynamicResource SuccessSubtleFg}" Text="{Binding FileSearchProgressValue, StringFormat={}{0:0}%}" />
+                                            <TextBlock />
+                                        </DockPanel>
+                                        <ProgressBar Height="8" Minimum="0" Maximum="100" Value="{Binding FileSearchProgressValue, Mode=OneWay}"
+                                                     Foreground="#10B981" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SuccessSubtleBorder}" BorderThickness="1" />
+                                        <TextBlock Margin="0,6,0,0" FontSize="12" Foreground="{DynamicResource SuccessSubtleFg}" Text="{Binding FileSearchProgressText}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Grid.Row="1" FontSize="14" Foreground="{DynamicResource TertiaryFg}" Margin="0,60,0,0" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="350"
+                                           Visibility="{Binding HasActivityLogs, Converter={StaticResource InverseBoolToVis}}"
+                                           Text="No entries yet. When ChatGPT invokes tools for your GPT, they will appear here." />
+
+                                <ListView ItemsSource="{Binding FilteredLogs}" SelectedItem="{Binding SelectedLog, Mode=TwoWay}"
+                                          Grid.Row="1" BorderThickness="0" Background="Transparent" FontSize="13" Margin="2"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                          Visibility="{Binding HasActivityLogs, Converter={StaticResource BoolToVis}}">
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem">
+                                            <Setter Property="Padding" Value="0" />
+                                            <Setter Property="Margin" Value="8,6" />
+                                            <Setter Property="BorderThickness" Value="0" />
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListViewItem">
+                                                        <Border x:Name="Bd"
+                                                                Padding="14"
+                                                                Background="{DynamicResource CardMutedBg}"
+                                                                BorderBrush="{DynamicResource SubtleBorder}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="10">
+                                                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBg}" />
+                                                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource MutedFg}" />
+                                                            </Trigger>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectedBg}" />
+                                                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource SelectedBorder}" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0">
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                                        <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" Text="{Binding ToolDisplay}" />
+                                                        <TextBlock FontSize="12" Foreground="{DynamicResource TertiaryFg}" Margin="8,0,0,0" Text="{Binding CreatedAtDisplay}" />
+                                                    </StackPanel>
+                                                    <TextBlock FontSize="13" Foreground="{DynamicResource SecondaryFg}" Text="{Binding Summary}" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                                <Border Grid.Column="1" Padding="8,4" Margin="12,0,0,0" CornerRadius="999" VerticalAlignment="Top">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="{DynamicResource SuccessSubtleBg}" />
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource SuccessSubtleBorder}" />
+                                                                <Setter Property="BorderThickness" Value="1" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="pending">
+                                                                        <Setter Property="Background" Value="{DynamicResource PendingSubtleBg}" />
+                                                                        <Setter Property="BorderBrush" Value="{DynamicResource MutedFg}" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="error">
+                                                                        <Setter Property="Background" Value="{DynamicResource ErrorSubtleBg}" />
+                                                                        <Setter Property="BorderBrush" Value="{DynamicResource ErrorSubtleBorder}" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="denied">
+                                                                        <Setter Property="Background" Value="{DynamicResource ErrorSubtleBg}" />
+                                                                        <Setter Property="BorderBrush" Value="{DynamicResource ErrorSubtleBorder}" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="timeout">
+                                                                        <Setter Property="Background" Value="{DynamicResource WarningSubtleBg}" />
+                                                                        <Setter Property="BorderBrush" Value="{DynamicResource WarningSubtleBorder}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <TextBlock FontSize="12" FontWeight="SemiBold" Text="{Binding StatusDisplay}">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource SuccessSubtleBorder}" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding Status}" Value="pending">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource MutedFg}" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Status}" Value="error">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource ErrorSubtleFg}" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Status}" Value="denied">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource ErrorSubtleFg}" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding Status}" Value="timeout">
+                                                                            <Setter Property="Foreground" Value="{DynamicResource WarningSubtleBorder}" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </Border>
+                                                </Grid>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </Grid>
+                        </Border>
+
+                        <Button Grid.Row="2" Margin="0,12,0,0" HorizontalAlignment="Left" Style="{StaticResource GhostBtn}"
+                                Content="{Binding ActivityLogToggleText}"
+                                Command="{Binding ToggleActivityLogCommand}"
+                                Visibility="{Binding HasActivityLogs, Converter={StaticResource BoolToVis}}" />
+
+                        <TextBox Grid.Row="2" Margin="0,52,0,0" Style="{StaticResource CodeBox}" MinHeight="120" MaxHeight="180"
+                                 VerticalScrollBarVisibility="Auto" Text="{Binding SelectedLogDetail, Mode=OneWay}" />
+
+                        <Button Grid.Row="3" Margin="0,20,0,0" HorizontalAlignment="Left" Style="{StaticResource SecondaryBtn}"
+                                Content="Open diff viewer"
+                                Command="{Binding ViewDiffViewerCommand}" />
+                    </Grid>
+
+                </Grid>
+
+                <!-- ────────── STEP 5: Diff Viewer ────────── -->
+                <Grid Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=5}" Margin="40,32,40,24" MaxWidth="1200" HorizontalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <DockPanel Grid.Row="0" Margin="0,0,0,18">
+                        <Button DockPanel.Dock="Left" Style="{StaticResource GhostBtn}" Margin="0,0,16,0"
+                                Content="← Dashboard"
+                                Command="{Binding ReturnToDashboardCommand}" />
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource GhostBtn}" FontSize="13" Margin="0,0,8,0" Content="Copy" Command="{Binding CopyDiffCommand}" />
+                            <Button Style="{StaticResource SecondaryBtn}" FontSize="13" Content="Refresh diff" Command="{Binding RefreshDiffCommand}" />
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" Text="Diff Viewer" />
+                            <TextBlock FontSize="14" Foreground="{DynamicResource MutedFg}" Margin="0,4,0,0" Text="Inspect uncommitted workspace changes without crowding the activity dashboard." />
+                        </StackPanel>
+                    </DockPanel>
+
+                    <Border Grid.Row="1" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,0,0,16">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#000000" Opacity="0.03" BlurRadius="10" ShadowDepth="2" />
+                        </Border.Effect>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" VerticalAlignment="Center" Margin="0,0,8,0" Text="Show:" />
+                            <ComboBox Width="150" FontSize="13" ItemsSource="{Binding DiffModes}" SelectedItem="{Binding DiffMode}" />
+                            <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" VerticalAlignment="Center" Margin="16,0,8,0" Text="Turns:" />
+                            <ComboBox Width="80" FontSize="13" ItemsSource="{Binding DiffTurnCounts}" SelectedItem="{Binding DiffTurnCount}" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Grid.Row="2" FontSize="13" Foreground="{DynamicResource MutedFg}" Margin="0,0,0,10" Text="{Binding DiffStatus}" TextWrapping="Wrap" />
+
+                    <TextBox Grid.Row="3" Style="{StaticResource CodeBox}" MinHeight="520"
+                             HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                             Text="{Binding DiffText, Mode=OneWay}" />
+                </Grid>
+
+            </Grid>
+        </ScrollViewer>
+
+        <!-- ═══════════════════ ROW 3: Navigation ═══════════════════ -->
+        <Border Grid.Row="3" Padding="24,12" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SoftBorder}" BorderThickness="0,1,0,0"
+                Visibility="{Binding ShowNextButton, Converter={StaticResource BoolToVis}}">
+            <Grid>
+                <Button HorizontalAlignment="Left"
+                        Style="{StaticResource SecondaryBtn}"
+                        Content="← Back"
+                        Command="{Binding PrevStepCommand}"
+                        Visibility="{Binding ShowBackButton, Converter={StaticResource BoolToVis}}" />
+                <Button HorizontalAlignment="Right"
+                        Style="{StaticResource PrimaryBtn}"
+                        Content="{Binding NextButtonText}"
+                        Command="{Binding NextStepCommand}" />
+            </Grid>
+        </Border>
+
+    </Grid>
+</Window>

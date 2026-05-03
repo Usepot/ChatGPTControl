@@ -1,0 +1,204 @@
+<Application x:Class="PortableCodex.Native.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:utils="clr-namespace:PortableCodex.Native.Utils"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <materialDesign:BundledTheme BaseTheme="Light" PrimaryColor="Blue" SecondaryColor="LightBlue" />
+                <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign2.Defaults.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Use Windows' native UI font to avoid soft MaterialDesign defaults in WPF. -->
+            <FontFamily x:Key="MaterialDesignFont">Segoe UI</FontFamily>
+
+            <!-- Converters -->
+            <utils:StepVisibilityConverter x:Key="StepVisibility" />
+            <utils:StepBrushConverter x:Key="StepBrush" />
+            <utils:StepForegroundConverter x:Key="StepForeground" />
+            <utils:StepLineBrushConverter x:Key="StepLineBrush" />
+            <utils:BoolToVisibilityConverter x:Key="BoolToVis" />
+            <utils:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis" />
+            <utils:StatusDotBrushConverter x:Key="StatusDot" />
+            <utils:StateVisibilityConverter x:Key="StateVisibility" />
+            <utils:InverseStateVisibilityConverter x:Key="StateVisibilityInverted" />
+
+            <!-- Colors -->
+            <SolidColorBrush x:Key="AccentBrush" Color="#3B82F6" />
+            <SolidColorBrush x:Key="AccentHoverBrush" Color="#2563EB" />
+            <SolidColorBrush x:Key="SuccessBrush" Color="#10B981" />
+            <SolidColorBrush x:Key="ErrorBrush" Color="#EF4444" />
+            <SolidColorBrush x:Key="AppBg" Color="#F8FAFC" />
+            <SolidColorBrush x:Key="CardBg" Color="#FFFFFF" />
+            <SolidColorBrush x:Key="CardMutedBg" Color="#F9FAFB" />
+            <SolidColorBrush x:Key="HoverBg" Color="#F3F4F6" />
+            <SolidColorBrush x:Key="SelectedBg" Color="#EFF6FF" />
+            <SolidColorBrush x:Key="SelectedBorder" Color="#BFDBFE" />
+            <SolidColorBrush x:Key="PrimaryFg" Color="#111827" />
+            <SolidColorBrush x:Key="SecondaryFg" Color="#374151" />
+            <SolidColorBrush x:Key="MutedFg" Color="#6B7280" />
+            <SolidColorBrush x:Key="TertiaryFg" Color="#9CA3AF" />
+            <SolidColorBrush x:Key="SubtleBorder" Color="#E5E7EB" />
+            <SolidColorBrush x:Key="SoftBorder" Color="#F3F4F6" />
+            <SolidColorBrush x:Key="SurfaceBg" Color="#F9FAFB" />
+            <SolidColorBrush x:Key="CodeBg" Color="#F4F4F5" />
+            <SolidColorBrush x:Key="CodeFg" Color="#1F2937" />
+            <SolidColorBrush x:Key="SuccessSubtleBg" Color="#ECFDF5" />
+            <SolidColorBrush x:Key="SuccessSubtleBorder" Color="#A7F3D0" />
+            <SolidColorBrush x:Key="SuccessSubtleFg" Color="#047857" />
+            <SolidColorBrush x:Key="PendingSubtleBg" Color="#F9FAFB" />
+            <SolidColorBrush x:Key="WarningSubtleBg" Color="#FFFBEB" />
+            <SolidColorBrush x:Key="WarningSubtleBorder" Color="#FDE68A" />
+            <SolidColorBrush x:Key="WarningSubtleFg" Color="#92400E" />
+            <SolidColorBrush x:Key="ErrorSubtleBg" Color="#FEF2F2" />
+            <SolidColorBrush x:Key="ErrorSubtleBorder" Color="#FECACA" />
+            <SolidColorBrush x:Key="ErrorSubtleFg" Color="#B91C1C" />
+
+            <!-- Primary button -->
+            <Style x:Key="PrimaryBtn" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="Padding" Value="24,10" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentHoverBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.4" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Secondary / outline button -->
+            <Style x:Key="SecondaryBtn" TargetType="Button">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Foreground" Value="{DynamicResource SecondaryFg}" />
+                <Setter Property="Padding" Value="20,9" />
+                <Setter Property="FontSize" Value="14" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorder}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBg}" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.4" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Ghost / text button -->
+            <Style x:Key="GhostBtn" TargetType="Button">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                <Setter Property="Padding" Value="10,6" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="4"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectedBg}" />
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.4" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Danger / destructive button (small) -->
+            <Style x:Key="DangerBtn" TargetType="Button">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Foreground" Value="#EF4444" />
+                <Setter Property="Padding" Value="8,4" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bd"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="4"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ErrorSubtleBg}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Code / copyable text box -->
+            <Style x:Key="CodeBox" TargetType="TextBox">
+                <Setter Property="FontFamily" Value="Cascadia Code, Consolas, monospace" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="IsReadOnly" Value="True" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="Background" Value="{DynamicResource CodeBg}" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="12,10" />
+                <Setter Property="Foreground" Value="{DynamicResource CodeFg}" />
+            </Style>
+
+            <!-- Editable text input -->
+            <Style x:Key="InputBox" TargetType="TextBox" BasedOn="{StaticResource CodeBox}">
+                <Setter Property="IsReadOnly" Value="False" />
+                <Setter Property="TextWrapping" Value="NoWrap" />
+                <Setter Property="Background" Value="{DynamicResource CardBg}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorder}" />
+            </Style>
+
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

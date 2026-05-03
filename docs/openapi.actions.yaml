@@ -1,0 +1,482 @@
+openapi: 3.1.0
+info:
+  title: Portable Codex Relay
+  version: 0.1.0
+  description: 'REST broker for a ChatGPT Custom GPT to request file operations on a paired desktop companion. The relay forwards JSON to the device and never reads or writes disk. Workspace trust, path sandboxing, credential checks, and optional write-approval prompts are enforced entirely on the companion; treat every Action call as non-consequential at the Chat layer because the device is the authority that allows or denies work.'
+servers:
+  - url: 'https://YOUR-RELAY-URL.example.com'
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+  schemas:
+    ToolError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      additionalProperties: false
+    ApprovalRequired:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+      additionalProperties: false
+    ListTrustedWorkspacesRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+          description: Optional caller-generated request ID. The relay generates one if omitted.
+        deviceId:
+          type: string
+          description: Optional target device ID. Defaults to the API token's default device.
+      additionalProperties: true
+    ListDirRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+          description: Optional caller-generated request ID.
+        deviceId:
+          type: string
+          description: Optional target device ID.
+        workspaceRoot:
+          type: string
+          description: Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request.
+        path:
+          type: string
+          description: Relative path inside the workspace. Defaults to .
+          default: .
+      required:
+        - workspaceRoot
+      additionalProperties: true
+    ReadFileRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request.
+        path:
+          type: string
+          description: Relative file path inside the workspace.
+        encoding:
+          type: string
+          enum:
+            - utf-8
+            - base64
+          default: utf-8
+        maxBytes:
+          type: integer
+          minimum: 1
+      required:
+        - workspaceRoot
+        - path
+      additionalProperties: true
+    WriteFileRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request.
+        path:
+          type: string
+        content:
+          type: string
+        createDirectories:
+          type: boolean
+          default: true
+      required:
+        - workspaceRoot
+        - path
+        - content
+      additionalProperties: true
+    PatchOperation:
+      type: object
+      properties:
+        find:
+          type: string
+          description: Literal text to find.
+        replace:
+          type: string
+          description: Literal replacement text.
+        occurrence:
+          type: integer
+          minimum: 1
+        replaceAll:
+          type: boolean
+          default: false
+      required:
+        - find
+        - replace
+      additionalProperties: false
+    ApplyPatchRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request.
+        patch:
+          type: string
+          description: Codex-style multi-file patch string. Use the *** Begin Patch / *** Add File / *** Update File / *** Delete File / *** End Patch format.
+        path:
+          type: string
+          description: Relative file path for legacy literal replacement operations.
+        operations:
+          type: array
+          description: Legacy literal replacement operations applied in order.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PatchOperation'
+      required:
+        - workspaceRoot
+      additionalProperties: true
+    SearchFilesRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request.
+        path:
+          type: string
+          default: .
+        query:
+          type: string
+        isRegex:
+          type: boolean
+          default: false
+        caseSensitive:
+          type: boolean
+          default: false
+        maxResults:
+          type: integer
+          minimum: 1
+        fileExtensions:
+          type: array
+          items:
+            type: string
+        multithreaded:
+          type: boolean
+          description: Enable parallel file scanning for large searches. Defaults to false.
+          default: false
+        maxSearchThreads:
+          type: integer
+          description: Maximum parallel file search workers. The companion clamps this to a safe maximum.
+          minimum: 1
+      required:
+        - workspaceRoot
+        - query
+      additionalProperties: true
+    StatPathRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request.
+        path:
+          type: string
+          default: .
+      required:
+        - workspaceRoot
+      additionalProperties: true
+    MakeDirRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request.
+        path:
+          type: string
+      required:
+        - workspaceRoot
+        - path
+      additionalProperties: true
+    DeletePathRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request.
+        path:
+          type: string
+        recursive:
+          type: boolean
+          default: false
+      required:
+        - workspaceRoot
+        - path
+      additionalProperties: true
+    RunCommandRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request.
+        command:
+          type: string
+          description: Command line to run from the trusted workspace.
+        workingDirectory:
+          type: string
+          description: Relative working directory inside the workspace. Defaults to .
+          default: .
+        timeoutMs:
+          type: integer
+          description: Command timeout in milliseconds. The companion clamps this to a safe maximum.
+          minimum: 1000
+          default: 60000
+        maxOutputBytes:
+          type: integer
+          description: Maximum UTF-8 bytes to return for stdout and stderr separately.
+          minimum: 1
+          default: 200000
+      required:
+        - workspaceRoot
+        - command
+      additionalProperties: true
+    ToolResponse:
+      type: object
+      description: Relay response from the paired device. Trust and filesystem access are decided on the device; `status` may be `denied` or include `approvalRequired` when the companion blocks or defers a change.
+      required:
+        - requestId
+        - status
+      properties:
+        requestId:
+          type: string
+        status:
+          type: string
+          enum:
+            - ok
+            - denied
+            - error
+            - timeout
+        result:
+          description: Tool-specific payload when status is ok.
+        error:
+          $ref: '#/components/schemas/ToolError'
+        approvalRequired:
+          $ref: '#/components/schemas/ApprovalRequired'
+      additionalProperties: true
+paths:
+  /tools/list-trusted-workspaces:
+    post:
+      x-openai-isConsequential: false
+      operationId: list_trusted_workspaces
+      summary: List the trusted workspace roots available on the connected device.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListTrustedWorkspacesRequest'
+      responses:
+        '200':
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResponse'
+  /tools/list-dir:
+    post:
+      x-openai-isConsequential: false
+      operationId: list_dir
+      summary: List files and directories within a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListDirRequest'
+      responses:
+        '200':
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResponse'
+  /tools/read-file:
+    post:
+      x-openai-isConsequential: false
+      operationId: read_file
+      summary: Read a file from a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReadFileRequest'
+      responses:
+        '200':
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResponse'
+  /tools/write-file:
+    post:
+      x-openai-isConsequential: false
+      operationId: write_file
+      summary: Write a file in a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WriteFileRequest'
+      responses:
+        '200':
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResponse'
+  /tools/apply-patch:
+    post:
+      x-openai-isConsequential: false
+      operationId: apply_patch
+      summary: Apply a Codex-style multi-file patch or legacy literal replacements.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyPatchRequest'
+      responses:
+        '200':
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResponse'
+  /tools/search-files:
+    post:
+      x-openai-isConsequential: false
+      operationId: search_files
+      summary: Search files recursively within a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchFilesRequest'
+      responses:
+        '200':
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResponse'
+  /tools/stat-path:
+    post:
+      x-openai-isConsequential: false
+      operationId: stat_path
+      summary: Retrieve path metadata within a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatPathRequest'
+      responses:
+        '200':
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResponse'
+  /tools/make-dir:
+    post:
+      x-openai-isConsequential: false
+      operationId: make_dir
+      summary: Create a directory inside a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MakeDirRequest'
+      responses:
+        '200':
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResponse'
+  /tools/delete-path:
+    post:
+      x-openai-isConsequential: false
+      operationId: delete_path
+      summary: Delete a file or directory inside a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeletePathRequest'
+      responses:
+        '200':
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResponse'
+  /tools/run-command:
+    post:
+      x-openai-isConsequential: false
+      operationId: run_command
+      summary: Run a command in a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunCommandRequest'
+      responses:
+        '200':
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolResponse'
