@@ -109,7 +109,7 @@ public sealed class LocalRelayServerService
                         var deviceId = body["deviceId"]?.GetValue<string>() ?? principal.DefaultDeviceId;
 
                         ToolRequest request;
-                        if (string.Equals(tool, "list_trusted_workspaces", StringComparison.Ordinal))
+                        if (!ToolRequiresWorkspaceRoot(tool))
                         {
                             request = body.Deserialize<ToolRequest>(JsonDefaults.Transport) ?? new ToolRequest();
                             request.Tool = tool;
@@ -364,6 +364,13 @@ public sealed class LocalRelayServerService
         }
 
         return 8787;
+    }
+
+    private static bool ToolRequiresWorkspaceRoot(string tool)
+    {
+        return !string.Equals(tool, "list_trusted_workspaces", StringComparison.Ordinal) &&
+               !string.Equals(tool, "list_skills", StringComparison.Ordinal) &&
+               !string.Equals(tool, "get_skill", StringComparison.Ordinal);
     }
 
     private void SetStatus(LocalRelayStatus status)

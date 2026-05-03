@@ -66,6 +66,46 @@
         },
         "additionalProperties": true
       },
+      "ListSkillsRequest": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "description": "Optional caller-generated request ID. The relay generates one if omitted."
+          },
+          "deviceId": {
+            "type": "string",
+            "description": "Optional target device ID. Defaults to the API token's default device."
+          }
+        },
+        "additionalProperties": true
+      },
+      "GetSkillRequest": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "description": "Optional caller-generated request ID. The relay generates one if omitted."
+          },
+          "deviceId": {
+            "type": "string",
+            "description": "Optional target device ID. Defaults to the API token's default device."
+          },
+          "skillName": {
+            "type": "string",
+            "description": "Skill name to load. Use the text after / when the user activates /skill-name."
+          },
+          "maxBytes": {
+            "type": "integer",
+            "description": "Maximum UTF-8 bytes of SKILL.md instructions to return.",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "skillName"
+        ],
+        "additionalProperties": true
+      },
       "ListDirRequest": {
         "type": "object",
         "properties": {
@@ -435,6 +475,64 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ListTrustedWorkspacesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tool result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list-skills": {
+      "post": {
+        "x-openai-isConsequential": false,
+        "operationId": "list_skills",
+        "summary": "List imported Codex CLI style skills available on the connected device.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListSkillsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tool result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/get-skill": {
+      "post": {
+        "x-openai-isConsequential": false,
+        "operationId": "get_skill",
+        "summary": "Load a Codex CLI style skill by name and return its SKILL.md instructions.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetSkillRequest"
               }
             }
           }

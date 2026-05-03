@@ -212,6 +212,10 @@ function summarizeRequest(request: ToolRequest): string {
   switch (request.tool) {
     case "list_trusted_workspaces":
       return "list trusted workspaces";
+    case "list_skills":
+      return "list skills";
+    case "get_skill":
+      return `skill=/${request.skillName}`;
     case "list_dir":
       return `path=${request.path ?? "."}`;
     case "read_file":

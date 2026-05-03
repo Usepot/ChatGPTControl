@@ -339,6 +339,8 @@ public sealed class DeviceBroker
         return request.Tool switch
         {
             "list_trusted_workspaces" => "list trusted workspaces",
+            "list_skills" => "list skills",
+            "get_skill" => $"skill=/{request.SkillName}",
             "list_dir" => $"path={request.Path ?? "."}",
             "read_file" => $"path={request.Path}",
             "write_file" => $"path={request.Path}, bytes={Encoding.UTF8.GetByteCount(request.Content ?? string.Empty)}",

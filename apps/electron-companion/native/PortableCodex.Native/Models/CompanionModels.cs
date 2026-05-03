@@ -26,6 +26,10 @@ public sealed class CompanionSettings
 
     public bool ImportCodexCliWorkspaces { get; set; }
 
+    public List<string> SkillRoots { get; set; } = [];
+
+    public bool ImportCodexCliSkills { get; set; }
+
     public bool RequireApprovalForWrites { get; set; } = true;
 
     public bool MultithreadedFileSearches { get; set; }
@@ -95,6 +99,17 @@ public sealed class ToolLogEntry
 
         return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(value.Replace('_', ' '));
     }
+}
+
+public sealed class SkillListEntry
+{
+    public string Name { get; set; } = string.Empty;
+
+    public string Description { get; set; } = string.Empty;
+
+    public string Path { get; set; } = string.Empty;
+
+    public string Activation => string.IsNullOrWhiteSpace(Name) ? string.Empty : $"/{Name}";
 }
 
 public sealed class ToolProgress

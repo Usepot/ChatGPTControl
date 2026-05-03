@@ -21,6 +21,8 @@ public sealed class ToolRequest
 
     public string Tool { get; set; } = string.Empty;
 
+    public string? SkillName { get; set; }
+
     public string? WorkspaceRoot { get; set; }
 
     public string? Path { get; set; }

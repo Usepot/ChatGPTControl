@@ -5,6 +5,8 @@ public static class ProtocolConstants
     public static readonly string[] ToolNames =
     [
         "list_trusted_workspaces",
+        "list_skills",
+        "get_skill",
         "list_dir",
         "read_file",
         "write_file",
@@ -19,6 +21,8 @@ public static class ProtocolConstants
     public static readonly IReadOnlyDictionary<string, string> ToolRouteMap = new Dictionary<string, string>
     {
         ["list_trusted_workspaces"] = "/tools/list-trusted-workspaces",
+        ["list_skills"] = "/tools/list-skills",
+        ["get_skill"] = "/tools/get-skill",
         ["list_dir"] = "/tools/list-dir",
         ["read_file"] = "/tools/read-file",
         ["write_file"] = "/tools/write-file",

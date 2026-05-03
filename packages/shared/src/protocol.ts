@@ -1,5 +1,7 @@
 export const TOOL_NAMES = [
   "list_trusted_workspaces",
+  "list_skills",
+  "get_skill",
   "list_dir",
   "read_file",
   "write_file",
@@ -26,6 +28,16 @@ export interface ToolRequestBase extends ToolRequestEnvelope {
 
 export interface ListTrustedWorkspacesRequest extends ToolRequestEnvelope {
   tool: "list_trusted_workspaces";
+}
+
+export interface ListSkillsRequest extends ToolRequestEnvelope {
+  tool: "list_skills";
+}
+
+export interface GetSkillRequest extends ToolRequestEnvelope {
+  tool: "get_skill";
+  skillName: string;
+  maxBytes?: number;
 }
 
 export interface ListDirRequest extends ToolRequestBase {
@@ -99,6 +111,8 @@ export interface RunCommandRequest extends ToolRequestBase {
 
 export type ToolRequest =
   | ListTrustedWorkspacesRequest
+  | ListSkillsRequest
+  | GetSkillRequest
   | ListDirRequest
   | ReadFileRequest
   | WriteFileRequest
@@ -190,6 +204,8 @@ export type DeviceToRelayMessage =
 
 export const TOOL_ROUTE_MAP: Record<ToolName, string> = {
   list_trusted_workspaces: "/tools/list-trusted-workspaces",
+  list_skills: "/tools/list-skills",
+  get_skill: "/tools/get-skill",
   list_dir: "/tools/list-dir",
   read_file: "/tools/read-file",
   write_file: "/tools/write-file",
@@ -211,6 +227,8 @@ export interface PairingConfig {
 export interface CompanionSettings extends PairingConfig {
   gptApiToken: string;
   trustedWorkspaces: string[];
+  skillRoots: string[];
+  importCodexCliSkills: boolean;
   requireApprovalForWrites: boolean;
 }
 

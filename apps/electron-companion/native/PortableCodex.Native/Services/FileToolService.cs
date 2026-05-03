@@ -87,6 +87,8 @@ public sealed class FileToolService
         return request.Tool switch
         {
             "list_trusted_workspaces" => "List trusted workspaces",
+            "list_skills" => "List skills",
+            "get_skill" => $"Get skill /{request.SkillName}",
             "list_dir" => $"List {request.Path ?? "."} in {Path.GetFileName(_pathPolicy.NormalizeWorkspaceRoot(request.WorkspaceRoot ?? string.Empty))}",
             "read_file" => $"Read {request.Path}",
             "write_file" => $"Write {request.Path}",

@@ -37,18 +37,59 @@ public sealed partial class CodexCliWorkspaceService
         return roots.Order(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    public IReadOnlyList<string> GetSkillRoots()
+    {
+        var roots = new HashSet<string>(OperatingSystem.IsWindows()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal);
+
+        foreach (var codexHome in GetCodexHomePaths())
+        {
+            var skillsDir = Path.Combine(codexHome, "skills");
+            if (!Directory.Exists(skillsDir))
+            {
+                continue;
+            }
+
+            try
+            {
+                foreach (var skillDir in Directory.EnumerateDirectories(skillsDir))
+                {
+                    if (File.Exists(Path.Combine(skillDir, "SKILL.md")))
+                    {
+                        roots.Add(skillDir);
+                    }
+                }
+            }
+            catch
+            {
+                // Best-effort import only. The companion should keep running even if Codex skills are unreadable.
+            }
+        }
+
+        return roots.Order(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     private static IEnumerable<string> GetConfigPaths()
+    {
+        foreach (var codexHome in GetCodexHomePaths())
+        {
+            yield return Path.Combine(codexHome, "config.toml");
+        }
+    }
+
+    private static IEnumerable<string> GetCodexHomePaths()
     {
         var codexHome = Environment.GetEnvironmentVariable("CODEX_HOME");
         if (!string.IsNullOrWhiteSpace(codexHome))
         {
-            yield return Path.Combine(codexHome, "config.toml");
+            yield return codexHome;
         }
 
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (!string.IsNullOrWhiteSpace(userProfile))
         {
-            yield return Path.Combine(userProfile, ".codex", "config.toml");
+            yield return Path.Combine(userProfile, ".codex");
         }
     }
 

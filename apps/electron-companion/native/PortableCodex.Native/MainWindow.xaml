@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
         Title="Portable Codex"
         Width="1100"
@@ -20,9 +21,82 @@
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
         TextOptions.TextHintingMode="Fixed"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanResize">
+
+    <shell:WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="36"
+                      ResizeBorderThickness="6"
+                      GlassFrameThickness="0"
+                      CornerRadius="0"
+                      UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
 
     <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="36" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                Background="{DynamicResource AppBg}"
+                BorderBrush="{DynamicResource SubtleBorder}"
+                BorderThickness="0,0,0,1">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right"
+                            Orientation="Horizontal"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button x:Name="ChromeMinimizeButton"
+                            Width="46" Height="36"
+                            Padding="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="ChromeMinimize_Click"
+                            ToolTip="Minimize"
+                            FontFamily="Segoe MDL2 Assets"
+                            FontSize="10"
+                            Content="&#xE921;"
+                            Foreground="{DynamicResource PrimaryFg}"
+                            Cursor="Hand" />
+                    <Button x:Name="ChromeMaximizeButton"
+                            Width="46" Height="36"
+                            Padding="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="ChromeMaximize_Click"
+                            ToolTip="Maximize"
+                            FontFamily="Segoe MDL2 Assets"
+                            FontSize="10"
+                            Content="&#xE922;"
+                            Foreground="{DynamicResource PrimaryFg}"
+                            Cursor="Hand" />
+                    <Button x:Name="ChromeCloseButton"
+                            Width="46" Height="36"
+                            Padding="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="ChromeClose_Click"
+                            ToolTip="Close"
+                            FontFamily="Segoe MDL2 Assets"
+                            FontSize="10"
+                            Content="&#xE8BB;"
+                            Foreground="{DynamicResource PrimaryFg}"
+                            Cursor="Hand" />
+                </StackPanel>
+                <Border Background="Transparent"
+                        MouseDown="TitleBar_MouseDown">
+                    <TextBlock Margin="14,0,0,0"
+                               VerticalAlignment="Center"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryFg}"
+                               Text="Portable Codex" />
+                </Border>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -497,6 +571,39 @@
                               IsChecked="{Binding ImportCodexCliWorkspaces}"
                               Content="Automatically copy workspaces from Codex CLI" />
 
+                    <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryFg}" Margin="0,8,0,6"
+                               Text="Skills" />
+                    <TextBlock FontSize="13" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,12" TextWrapping="Wrap"
+                               Text="{Binding SkillSummaryText}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button Style="{StaticResource GhostBtn}" HorizontalAlignment="Left" Margin="0,0,8,0"
+                                Content="+ Add skill folder" Command="{Binding AddSkillCommand}" />
+                    </StackPanel>
+                    <CheckBox Margin="0,0,0,16" FontSize="14" Foreground="{DynamicResource SecondaryFg}"
+                              IsChecked="{Binding ImportCodexCliSkills}"
+                              Content="Automatically sync Codex CLI skills" />
+
+                    <ItemsControl ItemsSource="{Binding Skills}" Margin="0,0,0,16"
+                                  Visibility="{Binding HasSkills, Converter={StaticResource BoolToVis}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{DynamicResource CardMutedBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,8">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource GhostBtn}" FontSize="12" Margin="12,0,0,0"
+                                                Content="Remove"
+                                                Command="{Binding DataContext.RemoveSkillCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding Path}" />
+                                        <StackPanel>
+                                            <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" Text="{Binding Activation}" />
+                                            <TextBlock FontSize="13" Foreground="{DynamicResource SecondaryFg}" Text="{Binding Description}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                            <TextBlock FontSize="12" Foreground="{DynamicResource TertiaryFg}" Text="{Binding Path}" TextTrimming="CharacterEllipsis" Margin="0,5,0,0" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
                     <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,6"
                                Visibility="{Binding HasWorkspaces, Converter={StaticResource BoolToVis}}"
                                Text="Current workspace" />
@@ -522,108 +629,140 @@
                 </Grid>
 
                 <!-- ─────────── STEP 4: Ready Dashboard ─────────── -->
-                <Grid Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=4}" Margin="40,32,40,24" MaxWidth="1200" HorizontalAlignment="Stretch">
+                <Grid Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=4}"
+                      Margin="28,20,28,20" MaxWidth="1180" HorizontalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Settings -->
+                    <Menu Grid.Row="0" HorizontalAlignment="Right" Margin="0,0,4,12" Background="Transparent" BorderThickness="0">
+                        <MenuItem Foreground="{DynamicResource PrimaryFg}" Padding="8,6" FontSize="13" ToolTip="Settings">
+                            <MenuItem.Header>
+                                <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="16" Text="&#xE713;" />
+                            </MenuItem.Header>
+                            <MenuItem Header="Use multithreaded file search"
+                                      IsCheckable="True"
+                                      IsChecked="{Binding MultithreadedFileSearches, Mode=TwoWay}" />
+                            <MenuItem Header="Dark mode"
+                                      IsCheckable="True"
+                                      IsChecked="{Binding IsDarkMode, Mode=TwoWay}" />
+                        </MenuItem>
+                    </Menu>
+
+                    <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="340" />
-                        <ColumnDefinition Width="48" />
-                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" MinWidth="280" MaxWidth="400" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="2*" MinWidth="360" />
                     </Grid.ColumnDefinitions>
 
                     <!-- Left Column: Status & Settings -->
                     <StackPanel Grid.Column="0">
-                        <!-- Hero Header -->
-                        <DockPanel Margin="0,0,0,16">
-                            <TextBlock DockPanel.Dock="Left" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}"
-                                       VerticalAlignment="Center" Text="Portable Codex" />
-                            <Menu DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Background="Transparent" BorderThickness="0">
-                                <MenuItem Header="⚙ Options" Foreground="{DynamicResource PrimaryFg}" Padding="8,4">
-                                    <MenuItem Header="Use multithreaded file search"
-                                              IsCheckable="True"
-                                              IsChecked="{Binding MultithreadedFileSearches, Mode=TwoWay}" />
-                                    <MenuItem Header="Dark mode"
-                                              IsCheckable="True"
-                                              IsChecked="{Binding IsDarkMode, Mode=TwoWay}" />
-                                </MenuItem>
-                            </Menu>
-                            <TextBlock />
-                        </DockPanel>
-
-                        <TextBlock FontSize="15" Foreground="{DynamicResource MutedFg}" Margin="0,0,0,32" TextWrapping="Wrap"
-                                   Text="Portable Codex is running securely in the background. Open ChatGPT to start using your GPT." />
-
                         <!-- Connection Card -->
-                        <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,0,24">
+                        <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="14" Padding="18,16" Margin="0,0,0,16">
                             <Border.Effect>
-                                <DropShadowEffect Color="#000000" Opacity="0.03" BlurRadius="10" ShadowDepth="2" />
+                                <DropShadowEffect Color="#000000" Opacity="0.035" BlurRadius="12" ShadowDepth="1" />
                             </Border.Effect>
                             <StackPanel>
-                                <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" Margin="0,0,0,20" Text="Connection Status" />
-                                
-                                <DockPanel Margin="0,0,0,16">
+                                <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,12" Text="CONNECTION" />
+                                <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" Margin="0,0,0,14" Text="Status" />
+
+                                <DockPanel Margin="0,0,0,14">
                                     <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Margin="0,4,12,0" VerticalAlignment="Top"
                                              Fill="{Binding RelayConnectionState, Converter={StaticResource StatusDot}}" />
                                     <StackPanel>
-                                        <TextBlock FontSize="14" FontWeight="Medium" Foreground="{DynamicResource SecondaryFg}" Text="Relay Server" />
-                                        <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" Text="{Binding RelayConnectionMessage}" Margin="0,2,0,0" />
+                                        <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryFg}" Text="Relay" />
+                                        <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" Text="{Binding RelayConnectionMessage}" Margin="0,2,0,0" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </DockPanel>
 
-                                <DockPanel Margin="0,0,0,16" Visibility="{Binding TunnelReady, Converter={StaticResource BoolToVis}}">
+                                <DockPanel Margin="0,0,0,14" Visibility="{Binding TunnelReady, Converter={StaticResource BoolToVis}}">
                                     <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Margin="0,4,12,0" VerticalAlignment="Top"
                                              Fill="{Binding TunnelState, Converter={StaticResource StatusDot}}" />
                                     <StackPanel>
-                                        <TextBlock FontSize="14" FontWeight="Medium" Foreground="{DynamicResource SecondaryFg}" Text="Tunnel" />
-                                        <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" FontFamily="Cascadia Code, Consolas" Text="{Binding TunnelUrl}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
-                                        <Button Margin="0,6,0,0" HorizontalAlignment="Left" Style="{StaticResource GhostBtn}" FontSize="12"
+                                        <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryFg}" Text="Public URL" />
+                                        <TextBlock FontSize="12" Foreground="{DynamicResource MutedFg}" FontFamily="Cascadia Code, Consolas"
+                                                   Text="{Binding TunnelUrl}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" TextWrapping="NoWrap" />
+                                        <Button Margin="0,8,0,0" HorizontalAlignment="Left" Style="{StaticResource GhostBtn}" FontSize="12"
                                                 Content="{Binding TunnelCopiedLabel}" Command="{Binding CopyTunnelUrlCommand}" />
                                     </StackPanel>
                                 </DockPanel>
 
                                 <DockPanel>
                                     <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Margin="0,4,12,0" VerticalAlignment="Top"
-                                             Fill="#10B981" />
+                                             Fill="{DynamicResource SuccessSubtleBorder}" />
                                     <StackPanel>
-                                        <TextBlock FontSize="14" FontWeight="Medium" Foreground="{DynamicResource SecondaryFg}" Text="Device ID" />
-                                        <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" Text="{Binding DeviceId}" Margin="0,2,0,0" />
+                                        <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryFg}" Text="Device ID" />
+                                        <TextBlock FontSize="12" FontFamily="Cascadia Code, Consolas" Foreground="{DynamicResource MutedFg}" Text="{Binding DeviceId}" Margin="0,2,0,0" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </DockPanel>
                             </StackPanel>
                         </Border>
 
                         <!-- Workspaces Card -->
-                        <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,0,32">
+                        <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="14" Padding="18,16" Margin="0,0,0,20">
                             <Border.Effect>
-                                <DropShadowEffect Color="#000000" Opacity="0.03" BlurRadius="10" ShadowDepth="2" />
+                                <DropShadowEffect Color="#000000" Opacity="0.035" BlurRadius="12" ShadowDepth="1" />
                             </Border.Effect>
                             <StackPanel>
-                                <DockPanel Margin="0,0,0,20">
-                                    <TextBlock DockPanel.Dock="Left" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" VerticalAlignment="Center" Text="Workspaces" />
-                                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostBtn}" FontSize="13" HorizontalAlignment="Right"
-                                            Content="+ Add Folder" Command="{Binding AddWorkspaceCommand}" />
-                                    <TextBlock />
+                                <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,12" Text="WORKSPACES &amp; SKILLS" />
+                                <DockPanel Margin="0,0,0,14">
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostBtn}" FontSize="12" Padding="8,4" HorizontalAlignment="Right"
+                                            Content="+ Add folder" Command="{Binding AddWorkspaceCommand}" />
+                                    <TextBlock FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" VerticalAlignment="Center" Text="Folders" />
                                 </DockPanel>
 
-                                <DockPanel Margin="0,0,0,16" Visibility="{Binding HasWorkspaces, Converter={StaticResource BoolToVis}}">
-                                    <ComboBox FontSize="14" HorizontalAlignment="Stretch"
-                                              ItemsSource="{Binding CurrentWorkspaceChoices}"
-                                              SelectedItem="{Binding CurrentWorkspace, Mode=TwoWay}" />
-                                </DockPanel>
+                                <ComboBox Margin="0,0,0,12" FontSize="13" HorizontalAlignment="Stretch"
+                                          ItemsSource="{Binding CurrentWorkspaceChoices}"
+                                          SelectedItem="{Binding CurrentWorkspace, Mode=TwoWay}"
+                                          Visibility="{Binding HasWorkspaces, Converter={StaticResource BoolToVis}}" />
 
-                                <TextBlock FontSize="13" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,16"
-                                           Text="No workspaces added. Add a folder to let ChatGPT read and write to it." TextWrapping="Wrap"
+                                <TextBlock FontSize="13" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,14"
+                                           Text="No folders yet. Add one so ChatGPT can read and write project files." TextWrapping="Wrap"
                                            Visibility="{Binding HasWorkspaces, Converter={StaticResource InverseBoolToVis}}" />
 
                                 <CheckBox FontSize="13" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,12"
                                           IsChecked="{Binding ImportCodexCliWorkspaces}"
-                                          Content="Automatically sync Codex CLI" />
-                                
-                                <Button Style="{StaticResource GhostBtn}" FontSize="13" HorizontalAlignment="Left"
+                                          Content="Sync workspaces from Codex CLI" />
+
+                                <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" Margin="0,10,0,6" Text="Skills" />
+                                <TextBlock FontSize="12" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,10"
+                                           Text="{Binding SkillSummaryText}" TextWrapping="Wrap" />
+                                <CheckBox FontSize="13" Foreground="{DynamicResource SecondaryFg}" Margin="0,0,0,10"
+                                          IsChecked="{Binding ImportCodexCliSkills}"
+                                          Content="Sync skills from Codex CLI" />
+                                <Button Style="{StaticResource GhostBtn}" FontSize="12" HorizontalAlignment="Left" Margin="0,0,0,14"
+                                        Content="+ Add skill folder" Command="{Binding AddSkillCommand}" />
+
+                                <ItemsControl ItemsSource="{Binding Skills}" Margin="0,0,0,14"
+                                              Visibility="{Binding HasSkills, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource CardMutedBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,8">
+                                                <StackPanel>
+                                                    <DockPanel Margin="0,0,0,4">
+                                                        <Button DockPanel.Dock="Right" Style="{StaticResource GhostBtn}" FontSize="12" Margin="8,0,0,0"
+                                                                Content="Remove"
+                                                                Command="{Binding DataContext.RemoveSkillCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                CommandParameter="{Binding Path}" />
+                                                        <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" Text="{Binding Activation}" />
+                                                    </DockPanel>
+                                                    <TextBlock FontSize="13" Foreground="{DynamicResource SecondaryFg}" Text="{Binding Description}" TextWrapping="Wrap" />
+                                                    <TextBlock FontSize="12" Foreground="{DynamicResource TertiaryFg}" Text="{Binding Path}" TextTrimming="CharacterEllipsis" Margin="0,5,0,0" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Button Style="{StaticResource GhostBtn}" FontSize="12" HorizontalAlignment="Left"
                                         Content="Allow full system access" Command="{Binding TrustWholeSystemCommand}" />
                             </StackPanel>
                         </Border>
 
-                        <!-- Return to Setup -->
-                        <Button Style="{StaticResource GhostBtn}" HorizontalAlignment="Left" Foreground="{DynamicResource MutedFg}"
+                        <Button Style="{StaticResource GhostBtn}" HorizontalAlignment="Left" Foreground="{DynamicResource MutedFg}" FontSize="12"
                                 Content="Re-run setup wizard" Command="{Binding ReturnToSetupCommand}" />
                     </StackPanel>
 
@@ -631,28 +770,40 @@
                     <Grid Grid.Column="2">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <DockPanel Grid.Row="0" Margin="0,0,0,16">
-                            <TextBlock DockPanel.Dock="Left" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}"
-                                       VerticalAlignment="Center" Text="Activity Log" />
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" VerticalAlignment="Center" Margin="0,0,8,0" Text="Filter:" />
-                                <ComboBox Width="120" FontSize="13" ItemsSource="{Binding LogFilters}" SelectedItem="{Binding LogFilter}" />
-                            </StackPanel>
-                            <TextBlock />
-                        </DockPanel>
+                        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                            <DockPanel LastChildFill="True">
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Bottom">
+                                    <TextBlock FontSize="12" Foreground="{DynamicResource MutedFg}" VerticalAlignment="Center" Margin="0,0,8,0" Text="Filter" />
+                                    <ComboBox MinWidth="128" FontSize="13" ItemsSource="{Binding LogFilters}" SelectedItem="{Binding LogFilter}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TertiaryFg}" Text="ACTIVITY" />
+                                    <TextBlock FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" Margin="0,2,0,0" Text="Tool log" />
+                                    <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                               Text="Invocations from your GPT show up here as they run." />
+                                </StackPanel>
+                            </DockPanel>
+                        </StackPanel>
 
-                        <Border Grid.Row="1" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="12"
+                        <Border Grid.Row="1" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1" CornerRadius="14"
                                 MaxHeight="{Binding ActivityLogMaxHeight}">
                             <Border.Effect>
-                                <DropShadowEffect Color="#000000" Opacity="0.03" BlurRadius="10" ShadowDepth="2" />
+                                <DropShadowEffect Color="#000000" Opacity="0.035" BlurRadius="12" ShadowDepth="1" />
                             </Border.Effect>
                             <Grid>
-                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions><Border Grid.Row="0" Margin="12,12,12,0" Padding="12,10" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SuccessSubtleBorder}" BorderThickness="1" CornerRadius="10" Visibility="{Binding IsFileSearchInProgress, Converter={StaticResource BoolToVis}}" VerticalAlignment="Top">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Margin="12,12,12,0" Padding="12,10"
+                                        Background="{DynamicResource SuccessSubtleBg}" BorderBrush="{DynamicResource SuccessSubtleBorder}" BorderThickness="1" CornerRadius="10"
+                                        Visibility="{Binding IsFileSearchInProgress, Converter={StaticResource BoolToVis}}" VerticalAlignment="Top">
                                     <StackPanel>
                                         <DockPanel Margin="0,0,0,8">
                                             <TextBlock DockPanel.Dock="Left" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource SuccessSubtleFg}" Text="File search in progress" />
@@ -660,17 +811,20 @@
                                             <TextBlock />
                                         </DockPanel>
                                         <ProgressBar Height="8" Minimum="0" Maximum="100" Value="{Binding FileSearchProgressValue, Mode=OneWay}"
-                                                     Foreground="#10B981" Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource SuccessSubtleBorder}" BorderThickness="1" />
+                                                     Foreground="{DynamicResource SuccessSubtleBorder}" Background="{DynamicResource CardMutedBg}" BorderBrush="{DynamicResource SuccessSubtleBorder}" BorderThickness="1" />
                                         <TextBlock Margin="0,6,0,0" FontSize="12" Foreground="{DynamicResource SuccessSubtleFg}" Text="{Binding FileSearchProgressText}" TextWrapping="Wrap" />
                                     </StackPanel>
                                 </Border>
 
-                                <TextBlock Grid.Row="1" FontSize="14" Foreground="{DynamicResource TertiaryFg}" Margin="0,60,0,0" TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" MaxWidth="350"
-                                           Visibility="{Binding HasActivityLogs, Converter={StaticResource InverseBoolToVis}}"
-                                           Text="No entries yet. When ChatGPT invokes tools for your GPT, they will appear here." />
+                                <Border Grid.Row="1" Padding="20,32" Visibility="{Binding HasActivityLogs, Converter={StaticResource InverseBoolToVis}}">
+                                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="320">
+                                        <TextBlock FontSize="14" Foreground="{DynamicResource MutedFg}" TextWrapping="Wrap" TextAlignment="Center"
+                                                   Text="Nothing here yet. When ChatGPT calls an action, each tool run will appear in this list." />
+                                    </StackPanel>
+                                </Border>
 
                                 <ListView ItemsSource="{Binding FilteredLogs}" SelectedItem="{Binding SelectedLog, Mode=TwoWay}"
-                                          Grid.Row="1" BorderThickness="0" Background="Transparent" FontSize="13" Margin="2"
+                                          Grid.Row="1" BorderThickness="0" Background="Transparent" FontSize="13" Margin="4,6,4,6"
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                           Visibility="{Binding HasActivityLogs, Converter={StaticResource BoolToVis}}">
                                     <ListView.ItemContainerStyle>
@@ -776,17 +930,22 @@
                             </Grid>
                         </Border>
 
-                        <Button Grid.Row="2" Margin="0,12,0,0" HorizontalAlignment="Left" Style="{StaticResource GhostBtn}"
+                        <Button Grid.Row="2" Margin="0,10,0,0" HorizontalAlignment="Left" Style="{StaticResource GhostBtn}"
                                 Content="{Binding ActivityLogToggleText}"
                                 Command="{Binding ToggleActivityLogCommand}"
                                 Visibility="{Binding HasActivityLogs, Converter={StaticResource BoolToVis}}" />
 
-                        <TextBox Grid.Row="2" Margin="0,52,0,0" Style="{StaticResource CodeBox}" MinHeight="120" MaxHeight="180"
-                                 VerticalScrollBarVisibility="Auto" Text="{Binding SelectedLogDetail, Mode=OneWay}" />
+                        <StackPanel Grid.Row="3" Margin="0,4,0,0">
+                            <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,6" Text="SELECTED ENTRY" />
+                            <TextBox Style="{StaticResource CodeBox}" MinHeight="120" MaxHeight="200"
+                                     VerticalScrollBarVisibility="Auto" Text="{Binding SelectedLogDetail, Mode=OneWay}" />
+                        </StackPanel>
 
-                        <Button Grid.Row="3" Margin="0,20,0,0" HorizontalAlignment="Left" Style="{StaticResource SecondaryBtn}"
+                        <Button Grid.Row="4" Margin="0,14,0,0" HorizontalAlignment="Left" Style="{StaticResource SecondaryBtn}"
                                 Content="Open diff viewer"
                                 Command="{Binding ViewDiffViewerCommand}" />
+                    </Grid>
+
                     </Grid>
 
                 </Grid>
@@ -852,5 +1011,6 @@
             </Grid>
         </Border>
 
+        </Grid>
     </Grid>
 </Window>

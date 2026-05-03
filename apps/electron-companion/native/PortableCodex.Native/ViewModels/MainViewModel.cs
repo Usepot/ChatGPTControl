@@ -34,6 +34,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly PathPolicyService _pathPolicy = new();
     private readonly RelayContentService _relayContentService = new();
     private readonly CodexCliWorkspaceService _codexCliWorkspaceService = new();
+    private readonly SkillService _skillService = new();
 
     private readonly SettingsStore _settingsStore;
     private readonly FileToolService _fileToolService;
@@ -63,6 +64,7 @@ public sealed class MainViewModel : ObservableObject
     private string _tunnelMode = "tailscale_funnel";
     private string _currentWorkspace = string.Empty;
     private bool _importCodexCliWorkspaces;
+    private bool _importCodexCliSkills;
     private bool _requireApprovalForWrites = true;
     private bool _multithreadedFileSearches;
     private bool _isDarkMode = true;
@@ -143,8 +145,11 @@ public sealed class MainViewModel : ObservableObject
         ApplyTunnelSettingsCommand = new AsyncRelayCommand(ApplyTunnelSettingsAsync);
         InstallTailscaleCommand = new AsyncRelayCommand(InstallTailscaleAsync);
         AddWorkspaceCommand = new RelayCommand(AddWorkspace);
+        AddSkillCommand = new RelayCommand(AddSkill);
+        RemoveSkillCommand = new RelayCommand(param => RemoveSkill(param as string));
         TrustWholeSystemCommand = new RelayCommand(TrustWholeSystem);
         ViewAllWorkspacesCommand = new RelayCommand(ViewAllWorkspaces);
+        ViewAllSkillsCommand = new RelayCommand(ViewAllSkills);
         RemoveWorkspaceCommand = new RelayCommand(param => RemoveWorkspace(param as string));
         ReturnToSetupCommand = new RelayCommand(() => CurrentStep = StepSetup);
         OpenGptBuilderCommand = new RelayCommand(OpenGptBuilder);
@@ -170,6 +175,13 @@ public sealed class MainViewModel : ObservableObject
 
             SyncCurrentStepWithState();
         };
+        SkillRoots.CollectionChanged += (_, _) =>
+        {
+            RefreshSkillList();
+            OnPropertyChanged(nameof(HasSkills));
+            OnPropertyChanged(nameof(ViewAllSkillsButtonText));
+            OnPropertyChanged(nameof(SkillSummaryText));
+        };
         ActivityLogs.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(HasActivityLogs));
@@ -182,6 +194,8 @@ public sealed class MainViewModel : ObservableObject
     #region Collections
 
     public ObservableCollection<string> TrustedWorkspaces { get; } = [];
+    public ObservableCollection<string> SkillRoots { get; } = [];
+    public ObservableCollection<SkillListEntry> Skills { get; } = [];
     public ObservableCollection<ToolLogEntry> ActivityLogs { get; } = [];
     public ICollectionView FilteredLogs { get; }
     public IReadOnlyList<string> LogFilters { get; } = ["all", "pending", "ok", "denied", "error", "timeout"];
@@ -201,8 +215,11 @@ public sealed class MainViewModel : ObservableObject
     public AsyncRelayCommand ApplyTunnelSettingsCommand { get; }
     public AsyncRelayCommand InstallTailscaleCommand { get; }
     public RelayCommand AddWorkspaceCommand { get; }
+    public RelayCommand AddSkillCommand { get; }
+    public RelayCommand RemoveSkillCommand { get; }
     public RelayCommand TrustWholeSystemCommand { get; }
     public RelayCommand ViewAllWorkspacesCommand { get; }
+    public RelayCommand ViewAllSkillsCommand { get; }
     public RelayCommand RemoveWorkspaceCommand { get; }
     public RelayCommand ReturnToSetupCommand { get; }
     public RelayCommand OpenGptBuilderCommand { get; }
@@ -436,6 +453,26 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    public bool ImportCodexCliSkills
+    {
+        get => _importCodexCliSkills;
+        set
+        {
+            if (SetProperty(ref _importCodexCliSkills, value))
+            {
+                if (value)
+                {
+                    ImportCodexCliSkillsNow();
+                }
+
+                if (!_isLoadingState)
+                {
+                    PersistState();
+                }
+            }
+        }
+    }
+
     public string CurrentWorkspace
     {
         get => _currentWorkspace;
@@ -531,6 +568,14 @@ public sealed class MainViewModel : ObservableObject
     public bool HasWorkspaces => TrustedWorkspaces.Count > 0;
 
     public string ViewAllWorkspacesButtonText => $"View all ({TrustedWorkspaces.Count})";
+
+    public bool HasSkills => Skills.Count > 0;
+
+    public string ViewAllSkillsButtonText => $"View all skills ({Skills.Count})";
+
+    public string SkillSummaryText => Skills.Count == 0
+        ? "No skills imported yet. Add a skill folder or sync Codex CLI skills."
+        : $"{Skills.Count} skill(s) available via /skill-name.";
 
     public bool HasActivityLogs => ActivityLogs.Count > 0;
 
@@ -715,6 +760,54 @@ public sealed class MainViewModel : ObservableObject
         PersistState();
     }
 
+    private void AddSkill()
+    {
+        ClearError();
+        using var dialog = new Forms.FolderBrowserDialog
+        {
+            Description = "Select a skill folder that contains SKILL.md",
+            UseDescriptionForTitle = true,
+            ShowNewFolderButton = false,
+        };
+
+        if (dialog.ShowDialog() != Forms.DialogResult.OK || string.IsNullOrWhiteSpace(dialog.SelectedPath))
+        {
+            return;
+        }
+
+        var normalized = Path.GetFullPath(dialog.SelectedPath);
+        if (!File.Exists(Path.Combine(normalized, "SKILL.md")))
+        {
+            SetError("That folder does not contain SKILL.md.");
+            return;
+        }
+
+        if (SkillRoots.Any(w => string.Equals(w, normalized, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        SkillRoots.Add(normalized);
+        NormalizeSkillRoots();
+        PersistState();
+    }
+
+    private void RemoveSkill(string? skillPath)
+    {
+        if (string.IsNullOrWhiteSpace(skillPath))
+        {
+            return;
+        }
+
+        var existing = SkillRoots.FirstOrDefault(
+            root => string.Equals(root, skillPath, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
+        {
+            SkillRoots.Remove(existing);
+            PersistState();
+        }
+    }
+
     private void ImportCodexCliWorkspacesNow()
     {
         ClearError();
@@ -747,6 +840,36 @@ public sealed class MainViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(CurrentWorkspace) && TrustedWorkspaces.Count > 0)
         {
             CurrentWorkspace = TrustedWorkspaces[0];
+        }
+    }
+
+    private void ImportCodexCliSkillsNow()
+    {
+        ClearError();
+        var added = false;
+        try
+        {
+            foreach (var skillRoot in _codexCliWorkspaceService.GetSkillRoots())
+            {
+                var normalized = Path.GetFullPath(skillRoot);
+                if (SkillRoots.Any(w => string.Equals(w, normalized, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                SkillRoots.Add(normalized);
+                added = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            SetError($"Could not import Codex CLI skills: {ex.Message}");
+            return;
+        }
+
+        if (added)
+        {
+            NormalizeSkillRoots();
         }
     }
 
@@ -828,6 +951,19 @@ public sealed class MainViewModel : ObservableObject
             WpfMessageBoxImage.Information);
     }
 
+    private void ViewAllSkills()
+    {
+        var message = Skills.Count == 0
+            ? "No skills added."
+            : string.Join(Environment.NewLine, Skills.Select(skill => $"{skill.Activation} — {skill.Path}"));
+
+        WpfMessageBox.Show(
+            message,
+            "Skills",
+            WpfMessageBoxButton.OK,
+            WpfMessageBoxImage.Information);
+    }
+
     #endregion
 
     #region Tool request handling
@@ -859,22 +995,26 @@ public sealed class MainViewModel : ObservableObject
             PersistState();
         });
 
-        var response = string.Equals(request.Tool, "list_trusted_workspaces", StringComparison.Ordinal)
-            ? new ToolResponse
+        var response = request.Tool switch
+        {
+            "list_trusted_workspaces" => new ToolResponse
             {
                 RequestId = request.RequestId,
                 Status = "ok",
                 Result = JsonSerializer.SerializeToNode(
                     new { workspaces = TrustedWorkspaces.ToList(), currentWorkspace = CurrentWorkspace },
                     JsonDefaults.Transport),
-            }
-            : await _fileToolService.ExecuteAsync(
+            },
+            "list_skills" => _skillService.ListSkills(request, settingsSnapshot),
+            "get_skill" => await _skillService.GetSkillAsync(request, settingsSnapshot),
+            _ => await _fileToolService.ExecuteAsync(
                 request,
                 new ToolExecutionContext
                 {
                     Settings = settingsSnapshot,
                     ApproveWriteAsync = RequestWriteApprovalAsync,
-                });
+                }),
+        };
 
         if (string.Equals(request.Tool, "search_files", StringComparison.Ordinal))
         {
@@ -1109,6 +1249,7 @@ public sealed class MainViewModel : ObservableObject
             _tunnelMode = "tailscale_funnel";
             _currentWorkspace = settings.CurrentWorkspace;
             _importCodexCliWorkspaces = settings.ImportCodexCliWorkspaces;
+            _importCodexCliSkills = settings.ImportCodexCliSkills;
             _requireApprovalForWrites = settings.RequireApprovalForWrites;
             _multithreadedFileSearches = settings.MultithreadedFileSearches;
             _isDarkMode = settings.IsDarkMode;
@@ -1119,10 +1260,22 @@ public sealed class MainViewModel : ObservableObject
                 TrustedWorkspaces.Add(workspace);
             }
 
+            SkillRoots.Clear();
+            foreach (var skillRoot in settings.SkillRoots.Order(StringComparer.OrdinalIgnoreCase))
+            {
+                SkillRoots.Add(skillRoot);
+            }
+
             NormalizeTrustedWorkspaces();
             if (ImportCodexCliWorkspaces)
             {
                 ImportCodexCliWorkspacesNow();
+            }
+
+            NormalizeSkillRoots();
+            if (ImportCodexCliSkills)
+            {
+                ImportCodexCliSkillsNow();
             }
 
             if (!string.IsNullOrWhiteSpace(CurrentWorkspace) &&
@@ -1148,6 +1301,10 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CurrentWorkspace));
         OnPropertyChanged(nameof(CurrentWorkspaceChoices));
         OnPropertyChanged(nameof(ImportCodexCliWorkspaces));
+        OnPropertyChanged(nameof(ImportCodexCliSkills));
+        OnPropertyChanged(nameof(HasSkills));
+        OnPropertyChanged(nameof(ViewAllSkillsButtonText));
+        OnPropertyChanged(nameof(SkillSummaryText));
         OnPropertyChanged(nameof(RequireApprovalForWrites));
         OnPropertyChanged(nameof(MultithreadedFileSearches));
         OnPropertyChanged(nameof(IsDarkMode));
@@ -1180,6 +1337,8 @@ public sealed class MainViewModel : ObservableObject
             TrustedWorkspaces = TrustedWorkspaces.ToList(),
             CurrentWorkspace = (CurrentWorkspace ?? string.Empty).Trim(),
             ImportCodexCliWorkspaces = ImportCodexCliWorkspaces,
+            SkillRoots = SkillRoots.ToList(),
+            ImportCodexCliSkills = ImportCodexCliSkills,
             RequireApprovalForWrites = RequireApprovalForWrites,
             MultithreadedFileSearches = MultithreadedFileSearches,
             IsDarkMode = IsDarkMode,
@@ -1264,6 +1423,34 @@ public sealed class MainViewModel : ObservableObject
         {
             TrustedWorkspaces.Add(workspace);
         }
+    }
+
+    private void NormalizeSkillRoots()
+    {
+        var normalized = SkillRoots
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(Path.GetFullPath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        SkillRoots.Clear();
+        foreach (var skillRoot in normalized)
+        {
+            SkillRoots.Add(skillRoot);
+        }
+    }
+
+    private void RefreshSkillList()
+    {
+        Skills.Clear();
+        foreach (var skill in _skillService.GetSkillList(BuildCurrentSettings()))
+        {
+            Skills.Add(skill);
+        }
+
+        OnPropertyChanged(nameof(HasSkills));
+        OnPropertyChanged(nameof(ViewAllSkillsButtonText));
+        OnPropertyChanged(nameof(SkillSummaryText));
     }
 
     private int GetLocalRelayPort()

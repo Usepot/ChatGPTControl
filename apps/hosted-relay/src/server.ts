@@ -43,8 +43,9 @@ export async function startRelayServer(config: RelayConfig): Promise<RelayServer
       const requestId = body.requestId ?? createRequestId();
       const deviceId = body.deviceId ?? req.principal?.defaultDeviceId;
       const request =
-        tool === "list_trusted_workspaces"
+        !toolRequiresWorkspaceRoot(tool)
           ? ({
+              ...body,
               requestId,
               deviceId,
               tool,
@@ -133,6 +134,10 @@ function getPublicBaseUrl(req: Request, config: RelayConfig): string {
   const host = forwardedHost || req.header("host") || "localhost";
   const proto = forwardedProto || req.protocol || "http";
   return `${proto}://${host}`.replace(/\/+$/, "");
+}
+
+function toolRequiresWorkspaceRoot(tool: ToolName): boolean {
+  return tool !== "list_trusted_workspaces" && tool !== "list_skills" && tool !== "get_skill";
 }
 
 function authenticate(apiPrincipals: ApiPrincipal[]) {
