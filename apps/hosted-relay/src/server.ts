@@ -137,7 +137,7 @@ function getPublicBaseUrl(req: Request, config: RelayConfig): string {
 }
 
 function toolRequiresWorkspaceRoot(tool: ToolName): boolean {
-  return tool !== "list_trusted_workspaces" && tool !== "list_skills" && tool !== "get_skill";
+  return tool !== "list_trusted_workspaces" && tool !== "list_skills" && tool !== "get_skill" && tool !== "request_user_input";
 }
 
 function authenticate(apiPrincipals: ApiPrincipal[]) {

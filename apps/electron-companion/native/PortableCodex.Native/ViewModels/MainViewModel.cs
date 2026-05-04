@@ -1007,6 +1007,7 @@ public sealed class MainViewModel : ObservableObject
             },
             "list_skills" => _skillService.ListSkills(request, settingsSnapshot),
             "get_skill" => await _skillService.GetSkillAsync(request, settingsSnapshot),
+            "request_user_input" => await RequestUserInputAsync(request),
             _ => await _fileToolService.ExecuteAsync(
                 request,
                 new ToolExecutionContext
@@ -1114,6 +1115,36 @@ public sealed class MainViewModel : ObservableObject
                 WpfMessageBoxButton.YesNo,
                 WpfMessageBoxImage.Question);
             return result == WpfMessageBoxResult.Yes;
+        });
+    }
+
+    private Task<ToolResponse> RequestUserInputAsync(ToolRequest request)
+    {
+        var prompt = request.Prompt ?? "Please enter a value:";
+        var title = request.Title ?? "ChatGPT Request";
+
+        return RunOnUiThreadAsync<ToolResponse>(() =>
+        {
+            var dialog = new InputDialog(title, prompt);
+            var result = dialog.ShowDialog();
+            if (result != true)
+            {
+                return new ToolResponse
+                {
+                    RequestId = request.RequestId,
+                    Status = "denied",
+                    Error = new ToolError { Code = "USER_CANCELLED", Message = "User cancelled the input dialog" },
+                };
+            }
+
+            return new ToolResponse
+            {
+                RequestId = request.RequestId,
+                Status = "ok",
+                Result = JsonSerializer.SerializeToNode(
+                    new { response = dialog.ResponseText },
+                    JsonDefaults.Transport),
+            };
         });
     }
 

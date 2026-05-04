@@ -11,6 +11,9 @@ export const TOOL_NAMES = [
   "make_dir",
   "delete_path",
   "run_command",
+  "shell",
+  "view_image",
+  "request_user_input",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -109,6 +112,26 @@ export interface RunCommandRequest extends ToolRequestBase {
   maxOutputBytes?: number;
 }
 
+export interface ShellRequest extends ToolRequestBase {
+  tool: "shell";
+  command: string;
+  shell?: "auto" | "cmd" | "powershell" | "bash";
+  workingDirectory?: string;
+  timeoutMs?: number;
+  maxOutputBytes?: number;
+}
+
+export interface ViewImageRequest extends ToolRequestBase {
+  tool: "view_image";
+  path: string;
+}
+
+export interface RequestUserInputRequest extends ToolRequestEnvelope {
+  tool: "request_user_input";
+  prompt: string;
+  title?: string;
+}
+
 export type ToolRequest =
   | ListTrustedWorkspacesRequest
   | ListSkillsRequest
@@ -121,7 +144,10 @@ export type ToolRequest =
   | StatPathRequest
   | MakeDirRequest
   | DeletePathRequest
-  | RunCommandRequest;
+  | RunCommandRequest
+  | ShellRequest
+  | ViewImageRequest
+  | RequestUserInputRequest;
 
 export interface DirectoryEntry {
   name: string;
@@ -215,6 +241,9 @@ export const TOOL_ROUTE_MAP: Record<ToolName, string> = {
   make_dir: "/tools/make-dir",
   delete_path: "/tools/delete-path",
   run_command: "/tools/run-command",
+  shell: "/tools/shell",
+  view_image: "/tools/view-image",
+  request_user_input: "/tools/request-user-input",
 };
 
 export interface PairingConfig {

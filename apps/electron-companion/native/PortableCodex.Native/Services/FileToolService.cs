@@ -73,6 +73,8 @@ public sealed class FileToolService
                 "make_dir" => Ok(request.RequestId, await MakeDirAsync(request.WorkspaceRoot, RequirePath(request), cancellationToken)),
                 "delete_path" => await HandleDeleteRequestAsync(request, context, cancellationToken),
                 "run_command" => await HandleRunCommandAsync(request, context, cancellationToken),
+                "shell" => await HandleShellAsync(request, context, cancellationToken),
+                "view_image" => Ok(request.RequestId, await ViewImageAsync(request.WorkspaceRoot, RequirePath(request), cancellationToken)),
                 _ => Error(request.RequestId, "UNSUPPORTED_TOOL", "Unsupported tool"),
             };
         }
@@ -98,6 +100,8 @@ public sealed class FileToolService
             "make_dir" => $"Create directory {request.Path}",
             "delete_path" => $"Delete {request.Path}",
             "run_command" => $"Run {request.Command}",
+            "shell" => $"Shell {request.Command}",
+            "view_image" => $"View image {request.Path}",
             _ => "Unknown request",
         };
     }
@@ -1020,7 +1024,200 @@ public sealed class FileToolService
         return Ok(requestId, result);
     }
 
-    private static string LimitOutput(string value, int maxBytes, out bool truncated)
+    private async Task<ToolResponse> HandleShellAsync(ToolRequest request, ToolExecutionContext context, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Command))
+        {
+            throw new InvalidOperationException("command is required for shell");
+        }
+
+        var workingDirectory = string.IsNullOrWhiteSpace(request.WorkingDirectory) ? "." : request.WorkingDirectory;
+        var absoluteWorkingDirectory = _pathPolicy.ResolvePathWithinWorkspace(request.WorkspaceRoot!, workingDirectory);
+        if (!Directory.Exists(absoluteWorkingDirectory))
+        {
+            throw new DirectoryNotFoundException($"Working directory does not exist: {workingDirectory}");
+        }
+
+        var timeoutMs = request.TimeoutMs.GetValueOrDefault(DefaultCommandTimeoutMs);
+        timeoutMs = Math.Clamp(timeoutMs, 1_000, MaxCommandTimeoutMs);
+        var maxOutputBytes = request.MaxOutputBytes.GetValueOrDefault(DefaultCommandMaxOutputBytes);
+        maxOutputBytes = Math.Clamp(maxOutputBytes, 1, DefaultCommandMaxOutputBytes);
+
+        var approved = await EnsureWriteApprovalAsync(
+            request,
+            $"Shell in {workingDirectory}: {request.Command}",
+            context);
+        if (!approved)
+        {
+            return Denied(request.RequestId, "User denied shell request");
+        }
+
+        var shellChoice = (request.Shell ?? "auto").ToLowerInvariant();
+        return await RunShellAsync(
+            request.RequestId,
+            request.Command,
+            shellChoice,
+            workingDirectory,
+            absoluteWorkingDirectory,
+            timeoutMs,
+            maxOutputBytes,
+            cancellationToken);
+    }
+
+    private static async Task<ToolResponse> RunShellAsync(
+        string requestId,
+        string command,
+        string shellChoice,
+        string workingDirectory,
+        string absoluteWorkingDirectory,
+        int timeoutMs,
+        int maxOutputBytes,
+        CancellationToken cancellationToken)
+    {
+        using var process = new Process();
+
+        string fileName;
+        string[] args;
+
+        if (shellChoice == "bash")
+        {
+            fileName = "bash";
+            args = ["-c", command];
+        }
+        else if (shellChoice == "cmd")
+        {
+            fileName = "cmd.exe";
+            args = ["/d", "/c", command];
+        }
+        else if (shellChoice == "powershell")
+        {
+            fileName = "powershell.exe";
+            args = ["-NonInteractive", "-Command", command];
+        }
+        else
+        {
+            // auto: PowerShell on Windows, bash elsewhere
+            if (OperatingSystem.IsWindows())
+            {
+                fileName = "powershell.exe";
+                args = ["-NonInteractive", "-Command", command];
+            }
+            else
+            {
+                fileName = "bash";
+                args = ["-c", command];
+            }
+        }
+
+        process.StartInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
+            WorkingDirectory = absoluteWorkingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
+        };
+        foreach (var arg in args)
+        {
+            process.StartInfo.ArgumentList.Add(arg);
+        }
+
+        process.Start();
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        var timedOut = false;
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(timeoutMs);
+        try
+        {
+            await process.WaitForExitAsync(timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            timedOut = true;
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch
+            {
+                // Best effort; the process may already have exited.
+            }
+
+            await process.WaitForExitAsync(CancellationToken.None);
+        }
+
+        var stdout = LimitOutput(await stdoutTask, maxOutputBytes, out var stdoutTruncated);
+        var stderr = LimitOutput(await stderrTask, maxOutputBytes, out var stderrTruncated);
+        var exitCode = process.HasExited ? process.ExitCode : (int?)null;
+        var result = new
+        {
+            command,
+            shell = fileName,
+            workingDirectory,
+            exitCode,
+            timedOut,
+            timeoutMs,
+            stdout,
+            stderr,
+            stdoutTruncated,
+            stderrTruncated,
+        };
+
+        if (timedOut)
+        {
+            return new ToolResponse
+            {
+                RequestId = requestId,
+                Status = "timeout",
+                Result = JsonSerializer.SerializeToNode(result, JsonDefaults.Transport),
+                Error = new ToolError
+                {
+                    Code = "COMMAND_TIMEOUT",
+                    Message = $"Command exceeded timeout of {timeoutMs} ms",
+                },
+            };
+        }
+
+        return Ok(requestId, result);
+    }
+
+    private static readonly Dictionary<string, string> ImageMimeTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [".jpg"] = "image/jpeg",
+        [".jpeg"] = "image/jpeg",
+        [".png"] = "image/png",
+        [".gif"] = "image/gif",
+        [".webp"] = "image/webp",
+        [".bmp"] = "image/bmp",
+        [".svg"] = "image/svg+xml",
+        [".ico"] = "image/x-icon",
+        [".tiff"] = "image/tiff",
+        [".tif"] = "image/tiff",
+    };
+
+    private async Task<object> ViewImageAsync(string workspaceRoot, string targetPath, CancellationToken cancellationToken)
+    {
+        var absolutePath = _pathPolicy.ResolvePathWithinWorkspace(workspaceRoot, targetPath);
+        var bytes = await File.ReadAllBytesAsync(absolutePath, cancellationToken);
+        var extension = Path.GetExtension(absolutePath);
+        var mimeType = ImageMimeTypes.TryGetValue(extension, out var mime) ? mime : "application/octet-stream";
+        var base64 = Convert.ToBase64String(bytes);
+        return new
+        {
+            path = targetPath,
+            imageUrl = $"data:{mimeType};base64,{base64}",
+            mimeType,
+            sizeBytes = bytes.Length,
+            detail = (string?)null,
+        };
+    }
+
+
     {
         var bytes = Encoding.UTF8.GetBytes(value);
         if (bytes.Length <= maxBytes)

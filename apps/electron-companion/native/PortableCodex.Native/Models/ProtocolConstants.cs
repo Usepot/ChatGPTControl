@@ -16,6 +16,9 @@ public static class ProtocolConstants
         "make_dir",
         "delete_path",
         "run_command",
+        "shell",
+        "view_image",
+        "request_user_input",
     ];
 
     public static readonly IReadOnlyDictionary<string, string> ToolRouteMap = new Dictionary<string, string>
@@ -32,6 +35,9 @@ public static class ProtocolConstants
         ["make_dir"] = "/tools/make-dir",
         ["delete_path"] = "/tools/delete-path",
         ["run_command"] = "/tools/run-command",
+        ["shell"] = "/tools/shell",
+        ["view_image"] = "/tools/view-image",
+        ["request_user_input"] = "/tools/request-user-input",
     };
 
     public static readonly HashSet<string> WriteTools = new(StringComparer.OrdinalIgnoreCase)
@@ -40,5 +46,6 @@ public static class ProtocolConstants
         "apply_patch",
         "delete_path",
         "run_command",
+        "shell",
     };
 }

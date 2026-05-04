@@ -53,6 +53,8 @@ public sealed class ToolRequest
 
     public string? Command { get; set; }
 
+    public string? Shell { get; set; }
+
     public string? WorkingDirectory { get; set; }
 
     public int? TimeoutMs { get; set; }
@@ -62,6 +64,10 @@ public sealed class ToolRequest
     public string? Encoding { get; set; }
 
     public int? MaxBytes { get; set; }
+
+    public string? Prompt { get; set; }
+
+    public string? Title { get; set; }
 }
 
 public sealed class ToolResponse

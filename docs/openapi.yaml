@@ -348,6 +348,87 @@ components:
         - command
       additionalProperties: true
 
+    ShellRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: >-
+            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            The device rejects any path outside configured trusted roots regardless of this request.
+        command:
+          type: string
+          description: Command to execute. Interpreted by the selected shell.
+        shell:
+          type: string
+          description: Shell to use. Defaults to auto (PowerShell on Windows, bash elsewhere).
+          enum:
+            - auto
+            - powershell
+            - cmd
+            - bash
+          default: auto
+        workingDirectory:
+          type: string
+          description: Relative working directory inside the workspace. Defaults to .
+          default: "."
+        timeoutMs:
+          type: integer
+          description: Execution timeout in milliseconds. The companion clamps this to a safe maximum.
+          minimum: 1000
+          default: 60000
+        maxOutputBytes:
+          type: integer
+          description: Maximum UTF-8 bytes to return for stdout and stderr separately.
+          minimum: 1
+          default: 200000
+      required:
+        - workspaceRoot
+        - command
+      additionalProperties: true
+
+    ViewImageRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: >-
+            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
+        path:
+          type: string
+          description: Relative path to the image file within the workspace.
+      required:
+        - workspaceRoot
+        - path
+      additionalProperties: true
+
+    RequestUserInputRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        prompt:
+          type: string
+          description: Text to display above the input box in the dialog shown to the user.
+          default: "Please enter a value:"
+        title:
+          type: string
+          description: Title of the input dialog window.
+          default: "ChatGPT Request"
+      required:
+        - prompt
+      additionalProperties: true
+
     ToolResponse:
       type: object
       description: >-
@@ -595,6 +676,63 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/RunCommandRequest"
+      responses:
+        "200":
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolResponse"
+
+  /tools/shell:
+    post:
+      x-openai-isConsequential: false
+      operationId: shell
+      summary: Run a command via a configurable shell (PowerShell, cmd, or bash) in a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShellRequest"
+      responses:
+        "200":
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolResponse"
+
+  /tools/view-image:
+    post:
+      x-openai-isConsequential: false
+      operationId: view_image
+      summary: Read an image file and return it as a base64 data URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ViewImageRequest"
+      responses:
+        "200":
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolResponse"
+
+  /tools/request-user-input:
+    post:
+      x-openai-isConsequential: false
+      operationId: request_user_input
+      summary: Show a text-input dialog on the companion device and return what the user typed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUserInputRequest"
       responses:
         "200":
           description: Tool result
