@@ -7,11 +7,15 @@
     "packages/*"
   ],
   "scripts": {
+    "prebuild": "npm run docs:openapi",
     "build": "npm run build --workspace @portable-codex/shared && npm run build --workspace @portable-codex/hosted-relay && npm run build --workspace @portable-codex/electron-companion",
     "dev": "npm run dev --workspace @portable-codex/electron-companion",
     "start": "npm run start --workspace @portable-codex/electron-companion",
+    "predev:relay": "npm run docs:openapi",
     "dev:relay": "npm run dev --workspace @portable-codex/hosted-relay",
+    "prebuild:exe": "npm run docs:openapi",
     "build:exe": "npm run build:exe --workspace @portable-codex/electron-companion",
+    "predist:win": "npm run docs:openapi",
     "dist:win": "npm run dist:win --workspace @portable-codex/electron-companion",
     "electron:dev": "npm run dev --workspace @portable-codex/electron-companion",
     "electron:start": "npm run start --workspace @portable-codex/electron-companion",

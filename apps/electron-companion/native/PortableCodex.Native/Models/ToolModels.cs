@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace PortableCodex.Native.Models;
 
@@ -51,17 +52,65 @@ public sealed class ToolRequest
 
     public bool? Recursive { get; set; }
 
-    public string? Command { get; set; }
+    public JsonNode? Command { get; set; }
+
+    [JsonPropertyName("cmd")]
+    public string? Cmd { get; set; }
+
+    public string? CommandLine { get; set; }
 
     public string? WorkingDirectory { get; set; }
 
+    [JsonPropertyName("workdir")]
+    public string? Workdir { get; set; }
+
+    [JsonPropertyName("working_directory")]
+    public string? WorkingDirectorySnake { get; set; }
+
     public int? TimeoutMs { get; set; }
 
+    [JsonPropertyName("timeout_ms")]
+    public int? TimeoutMsSnake { get; set; }
+
     public int? MaxOutputBytes { get; set; }
+
+    [JsonPropertyName("max_output_bytes")]
+    public int? MaxOutputBytesSnake { get; set; }
+
+    public string? Stdin { get; set; }
+
+    public string? Input { get; set; }
+
+    public string? Chars { get; set; }
+
+    public bool? Tty { get; set; }
+
+    public string? Shell { get; set; }
+
+    public bool? Login { get; set; }
+
+    [JsonPropertyName("yield_time_ms")]
+    public int? YieldTimeMs { get; set; }
+
+    [JsonPropertyName("max_output_tokens")]
+    public int? MaxOutputTokens { get; set; }
+
+    public string? ProcessId { get; set; }
+
+    public string? SessionId { get; set; }
+
+    [JsonPropertyName("session_id")]
+    public int? SessionIdSnake { get; set; }
+
+    public List<string>? Permissions { get; set; }
+
+    public string? Reason { get; set; }
 
     public string? Encoding { get; set; }
 
     public int? MaxBytes { get; set; }
+
+    public string? Screen { get; set; }
 }
 
 public sealed class ToolResponse

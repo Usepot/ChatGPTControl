@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using System.Windows.Data;
-using MaterialDesignThemes.Wpf;
+using Wpf.Ui.Appearance;
 using WpfApp = System.Windows.Application;
 using WpfClipboard = System.Windows.Clipboard;
 using WpfMessageBox = System.Windows.MessageBox;
@@ -61,6 +61,7 @@ public sealed class MainViewModel : ObservableObject
     private string _deviceToken = string.Empty;
     private string _deviceName = string.Empty;
     private string _gptApiToken = string.Empty;
+    private string _integrationMode = "legacy_action";
     private string _tunnelMode = "tailscale_funnel";
     private string _currentWorkspace = string.Empty;
     private bool _importCodexCliWorkspaces;
@@ -81,6 +82,8 @@ public sealed class MainViewModel : ObservableObject
     private string _diffStatus = "Diff viewer idle";
     private string _errorBanner = string.Empty;
     private string _schemaCopiedLabel = "Copy";
+    private string _mcpEndpointCopiedLabel = "Copy";
+    private string _instructionsCopiedLabel = "Copy prompt";
     private string _tokenCopiedLabel = "Copy";
     private string _tunnelCopiedLabel = "Copy";
     private bool _isLoadingState;
@@ -138,14 +141,17 @@ public sealed class MainViewModel : ObservableObject
 
         NextStepCommand = new AsyncRelayCommand(NextStepAsync, () => CanGoNext);
         PrevStepCommand = new RelayCommand(PrevStep, () => CanGoBack);
+        SelectIntegrationModeCommand = new RelayCommand(param => SelectIntegrationMode(param as string));
         CopySchemaCommand = new RelayCommand(CopySchemaWithFeedback);
-        CopyInstructionsCommand = new RelayCommand(() => CopyText(RelayContentService.GptInstructions));
+        CopyMcpEndpointCommand = new RelayCommand(CopyMcpEndpointWithFeedback);
+        CopyInstructionsCommand = new RelayCommand(CopyInstructionsWithFeedback);
         CopyAuthTokenCommand = new RelayCommand(CopyTokenWithFeedback);
         CopyTunnelUrlCommand = new RelayCommand(CopyTunnelWithFeedback);
         ApplyTunnelSettingsCommand = new AsyncRelayCommand(ApplyTunnelSettingsAsync);
         InstallTailscaleCommand = new AsyncRelayCommand(InstallTailscaleAsync);
         AddWorkspaceCommand = new RelayCommand(AddWorkspace);
         AddSkillCommand = new RelayCommand(AddSkill);
+        ViewSkillCommand = new RelayCommand(ViewSkill);
         RemoveSkillCommand = new RelayCommand(param => RemoveSkill(param as string));
         TrustWholeSystemCommand = new RelayCommand(TrustWholeSystem);
         ViewAllWorkspacesCommand = new RelayCommand(ViewAllWorkspaces);
@@ -208,7 +214,9 @@ public sealed class MainViewModel : ObservableObject
 
     public AsyncRelayCommand NextStepCommand { get; }
     public RelayCommand PrevStepCommand { get; }
+    public RelayCommand SelectIntegrationModeCommand { get; }
     public RelayCommand CopySchemaCommand { get; }
+    public RelayCommand CopyMcpEndpointCommand { get; }
     public RelayCommand CopyInstructionsCommand { get; }
     public RelayCommand CopyAuthTokenCommand { get; }
     public RelayCommand CopyTunnelUrlCommand { get; }
@@ -216,6 +224,7 @@ public sealed class MainViewModel : ObservableObject
     public AsyncRelayCommand InstallTailscaleCommand { get; }
     public RelayCommand AddWorkspaceCommand { get; }
     public RelayCommand AddSkillCommand { get; }
+    public RelayCommand ViewSkillCommand { get; }
     public RelayCommand RemoveSkillCommand { get; }
     public RelayCommand TrustWholeSystemCommand { get; }
     public RelayCommand ViewAllWorkspacesCommand { get; }
@@ -393,6 +402,41 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    public string IntegrationMode
+    {
+        get => _integrationMode;
+        set
+        {
+            var normalized = string.Equals(value, "legacy_action", StringComparison.Ordinal)
+                ? "legacy_action"
+                : "mcp";
+            if (SetProperty(ref _integrationMode, normalized))
+            {
+                NotifyIntegrationModeChanged();
+                if (!_isLoadingState)
+                {
+                    PersistState();
+                }
+            }
+        }
+    }
+
+    public bool IsMcpIntegrationSelected => string.Equals(IntegrationMode, "mcp", StringComparison.Ordinal);
+
+    public bool IsLegacyIntegrationSelected => string.Equals(IntegrationMode, "legacy_action", StringComparison.Ordinal);
+
+    public string StepCreateLabel => IsMcpIntegrationSelected ? "Create App (Beta)" : "Create GPT";
+
+    public string StepConfigureLabel => IsMcpIntegrationSelected ? "Connect App (Beta)" : "Add Action";
+
+    public string IntegrationModeTitle => IsMcpIntegrationSelected
+        ? "ChatGPT App Beta (Apps SDK / MCP)"
+        : "Custom GPT Action (Recommended)";
+
+    public string IntegrationModeSummary => IsMcpIntegrationSelected
+        ? "Beta. Use this only if you specifically want access to the Pro model through ChatGPT's Apps SDK connector flow. Otherwise, use the recommended Custom GPT Action."
+        : "Recommended. Uses a Custom GPT Action with the OpenAPI schema and the same companion approvals.";
+
     public bool RequireApprovalForWrites
     {
         get => _requireApprovalForWrites;
@@ -425,6 +469,7 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref _isDarkMode, value))
             {
                 ApplyTheme(value);
+                OnPropertyChanged(nameof(CurrentStep));
                 if (!_isLoadingState)
                 {
                     PersistState();
@@ -515,12 +560,49 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    public string McpEndpointUrl
+    {
+        get
+        {
+            var baseUrl = ResolveSchemaRelayUrl();
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                baseUrl = string.IsNullOrWhiteSpace(_relayUrl)
+                    ? $"http://localhost:{LocalRelayPort}"
+                    : _relayUrl;
+            }
+
+            return $"{baseUrl.TrimEnd('/')}/mcp";
+        }
+    }
+
     public string GptInstructions => RelayContentService.GptInstructions;
+
+    public string SystemPromptSummary =>
+        "Includes Portable Codex workspace rules plus Codex-compatible shell sessions, patch, skill, stdin, permission, and image-viewing guidance.";
+
+    public string ActionSchemaSummary =>
+        "Recommended Custom GPT Action schema. ChatGPT App Beta users should use the MCP endpoint above only when they want Pro model access.";
+
+    public string McpEndpointSummary =>
+        "Beta ChatGPT App connector endpoint. Use it only if you specifically want access to the Pro model through the app flow; otherwise, use the recommended Custom GPT Action.";
+
+    public string InstructionsCopiedLabel
+    {
+        get => _instructionsCopiedLabel;
+        private set => SetProperty(ref _instructionsCopiedLabel, value);
+    }
 
     public string SchemaCopiedLabel
     {
         get => _schemaCopiedLabel;
         private set => SetProperty(ref _schemaCopiedLabel, value);
+    }
+
+    public string McpEndpointCopiedLabel
+    {
+        get => _mcpEndpointCopiedLabel;
+        private set => SetProperty(ref _mcpEndpointCopiedLabel, value);
     }
 
     public string TokenCopiedLabel
@@ -808,6 +890,105 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    private void ViewSkill(object? parameter)
+    {
+        ClearError();
+        if (parameter is not SkillListEntry skill || string.IsNullOrWhiteSpace(skill.Path))
+        {
+            return;
+        }
+
+        var skillFile = Path.Combine(skill.Path, "SKILL.md");
+        if (!File.Exists(skillFile))
+        {
+            SetError($"SKILL.md was not found for {skill.Activation}.");
+            return;
+        }
+
+        string markdown;
+        try
+        {
+            markdown = File.ReadAllText(skillFile);
+        }
+        catch (Exception ex)
+        {
+            SetError($"Could not read {skill.Activation}: {ex.Message}");
+            return;
+        }
+
+        ShowSkillMarkdownWindow(skill, skillFile, markdown);
+    }
+
+    private static void ShowSkillMarkdownWindow(SkillListEntry skill, string skillFile, string markdown)
+    {
+        var header = new System.Windows.Controls.StackPanel
+        {
+            Margin = new System.Windows.Thickness(0, 0, 0, 12),
+        };
+
+        var title = new System.Windows.Controls.TextBlock
+        {
+            Text = skill.Activation,
+            FontSize = 18,
+            FontWeight = System.Windows.FontWeights.SemiBold,
+            Margin = new System.Windows.Thickness(0, 0, 0, 4),
+        };
+        title.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "PrimaryFg");
+
+        var path = new System.Windows.Controls.TextBlock
+        {
+            Text = skillFile,
+            FontSize = 11,
+            FontFamily = new System.Windows.Media.FontFamily("Cascadia Code, Consolas"),
+            TextWrapping = System.Windows.TextWrapping.Wrap,
+        };
+        path.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "TertiaryFg");
+
+        header.Children.Add(title);
+        header.Children.Add(path);
+
+        var markdownBox = new System.Windows.Controls.TextBox
+        {
+            Text = markdown,
+            IsReadOnly = true,
+            AcceptsReturn = true,
+            AcceptsTab = true,
+            TextWrapping = System.Windows.TextWrapping.Wrap,
+            VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Auto,
+            FontFamily = new System.Windows.Media.FontFamily("Cascadia Code, Consolas"),
+            FontSize = 12,
+            BorderThickness = new System.Windows.Thickness(1),
+            Padding = new System.Windows.Thickness(14, 12, 14, 12),
+        };
+        markdownBox.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "CodeBg");
+        markdownBox.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, "CodeFg");
+        markdownBox.SetResourceReference(System.Windows.Controls.Control.BorderBrushProperty, "SubtleBorder");
+
+        var content = new System.Windows.Controls.DockPanel
+        {
+            LastChildFill = true,
+            Margin = new System.Windows.Thickness(18),
+        };
+        System.Windows.Controls.DockPanel.SetDock(header, System.Windows.Controls.Dock.Top);
+        content.Children.Add(header);
+        content.Children.Add(markdownBox);
+
+        var window = new System.Windows.Window
+        {
+            Title = $"{skill.Activation} SKILL.md",
+            Width = 840,
+            Height = 640,
+            MinWidth = 520,
+            MinHeight = 360,
+            Owner = WpfApp.Current.MainWindow,
+            WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner,
+            Content = content,
+        };
+        window.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "AppBg");
+        window.ShowDialog();
+    }
+
     private void ImportCodexCliWorkspacesNow()
     {
         ClearError();
@@ -970,7 +1151,7 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task<ToolResponse> HandleToolRequestAsync(ToolRequest request)
     {
-        var settingsSnapshot = BuildCurrentSettings();
+        var settingsSnapshot = await RunOnUiThreadAsync(BuildCurrentSettings);
         ApplyRequestDefaults(request, settingsSnapshot);
         var logEntry = new ToolLogEntry
         {
@@ -1002,11 +1183,20 @@ public sealed class MainViewModel : ObservableObject
                 RequestId = request.RequestId,
                 Status = "ok",
                 Result = JsonSerializer.SerializeToNode(
-                    new { workspaces = TrustedWorkspaces.ToList(), currentWorkspace = CurrentWorkspace },
+                    new { workspaces = settingsSnapshot.TrustedWorkspaces, currentWorkspace = settingsSnapshot.CurrentWorkspace },
+                    JsonDefaults.Transport),
+            },
+            "get_gpt_instructions" => new ToolResponse
+            {
+                RequestId = request.RequestId,
+                Status = "ok",
+                Result = JsonSerializer.SerializeToNode(
+                    new { instructions = RelayContentService.GptInstructions },
                     JsonDefaults.Transport),
             },
             "list_skills" => _skillService.ListSkills(request, settingsSnapshot),
             "get_skill" => await _skillService.GetSkillAsync(request, settingsSnapshot),
+            "request_permissions" => CreateRequestPermissionsResponse(request),
             _ => await _fileToolService.ExecuteAsync(
                 request,
                 new ToolExecutionContext
@@ -1071,6 +1261,29 @@ public sealed class MainViewModel : ObservableObject
         return response;
     }
 
+    private static ToolResponse CreateRequestPermissionsResponse(ToolRequest request)
+    {
+        return new ToolResponse
+        {
+            RequestId = request.RequestId,
+            Status = "denied",
+            Error = new ToolError
+            {
+                Code = "REQUEST_PERMISSIONS_UNSUPPORTED",
+                Message = "Portable Codex uses trusted workspaces and companion write approvals instead of Codex-style dynamic sandbox permission escalation.",
+            },
+            Result = JsonSerializer.SerializeToNode(
+                new
+                {
+                    granted = false,
+                    permissions = request.Permissions ?? [],
+                    reason = request.Reason,
+                    alternative = "Trust additional workspace roots in the companion app or approve individual write/command prompts.",
+                },
+                JsonDefaults.Transport),
+        };
+    }
+
     private void OnRelayTerminalDispatch(ToolRequest request, ToolResponse response)
     {
         _ = RunOnUiThreadAsync(() =>
@@ -1133,6 +1346,20 @@ public sealed class MainViewModel : ObservableObject
         ResetLabelAfterDelay(v => SchemaCopiedLabel = v, "Copy");
     }
 
+    private void CopyMcpEndpointWithFeedback()
+    {
+        CopyText(McpEndpointUrl);
+        McpEndpointCopiedLabel = "Copied!";
+        ResetLabelAfterDelay(v => McpEndpointCopiedLabel = v, "Copy");
+    }
+
+    private void CopyInstructionsWithFeedback()
+    {
+        CopyText(RelayContentService.GptInstructions);
+        InstructionsCopiedLabel = "Copied!";
+        ResetLabelAfterDelay(v => InstructionsCopiedLabel = v, "Copy prompt");
+    }
+
     private void CopyTokenWithFeedback()
     {
         CopyText(GptApiToken);
@@ -1145,6 +1372,11 @@ public sealed class MainViewModel : ObservableObject
         CopyText(TunnelUrl);
         TunnelCopiedLabel = "Copied!";
         ResetLabelAfterDelay(v => TunnelCopiedLabel = v, "Copy");
+    }
+
+    private void SelectIntegrationMode(string? mode)
+    {
+        IntegrationMode = mode ?? "mcp";
     }
 
     private void CopyText(string? value)
@@ -1222,7 +1454,7 @@ public sealed class MainViewModel : ObservableObject
         {
             var psi = new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "https://chatgpt.com/gpts/editor",
+                FileName = "https://chatgpt.com",
                 UseShellExecute = true,
             };
             System.Diagnostics.Process.Start(psi);
@@ -1246,6 +1478,9 @@ public sealed class MainViewModel : ObservableObject
             _deviceToken = settings.DeviceToken;
             _deviceName = settings.DeviceName;
             _gptApiToken = settings.GptApiToken;
+            _integrationMode = string.Equals(settings.IntegrationMode, "mcp", StringComparison.Ordinal)
+                ? "mcp"
+                : "legacy_action";
             _tunnelMode = "tailscale_funnel";
             _currentWorkspace = settings.CurrentWorkspace;
             _importCodexCliWorkspaces = settings.ImportCodexCliWorkspaces;
@@ -1298,6 +1533,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(DeviceId));
         OnPropertyChanged(nameof(TunnelModeSummary));
         OnPropertyChanged(nameof(GptApiToken));
+        NotifyIntegrationModeChanged();
         OnPropertyChanged(nameof(CurrentWorkspace));
         OnPropertyChanged(nameof(CurrentWorkspaceChoices));
         OnPropertyChanged(nameof(ImportCodexCliWorkspaces));
@@ -1334,6 +1570,7 @@ public sealed class MainViewModel : ObservableObject
             DeviceToken = (_deviceToken ?? string.Empty).Trim(),
             DeviceName = (_deviceName ?? string.Empty).Trim(),
             GptApiToken = (_gptApiToken ?? string.Empty).Trim(),
+            IntegrationMode = IntegrationMode,
             TrustedWorkspaces = TrustedWorkspaces.ToList(),
             CurrentWorkspace = (CurrentWorkspace ?? string.Empty).Trim(),
             ImportCodexCliWorkspaces = ImportCodexCliWorkspaces,
@@ -1357,14 +1594,14 @@ public sealed class MainViewModel : ObservableObject
     {
         try
         {
-            var palette = new PaletteHelper();
-            var theme = palette.GetTheme();
-            theme.SetBaseTheme(isDarkMode ? BaseTheme.Dark : BaseTheme.Light);
-            palette.SetTheme(theme);
+            ApplicationThemeManager.Apply(
+                isDarkMode ? ApplicationTheme.Dark : ApplicationTheme.Light,
+                Wpf.Ui.Controls.WindowBackdropType.Mica,
+                true);
         }
         catch
         {
-            // Best effort: keep the app usable if Material Design theme switching fails.
+            // Best effort: keep the app usable if WPF UI theme switching fails.
         }
 
         SetBrush("AppBg", isDarkMode ? "#0F172A" : "#F8FAFC");
@@ -1477,6 +1714,23 @@ public sealed class MainViewModel : ObservableObject
     private void NotifySchemaChanged()
     {
         OnPropertyChanged(nameof(MinifiedOpenApiSchema));
+        OnPropertyChanged(nameof(McpEndpointUrl));
+        OnPropertyChanged(nameof(GptInstructions));
+        OnPropertyChanged(nameof(SystemPromptSummary));
+        OnPropertyChanged(nameof(ActionSchemaSummary));
+        OnPropertyChanged(nameof(McpEndpointSummary));
+    }
+
+    private void NotifyIntegrationModeChanged()
+    {
+        OnPropertyChanged(nameof(IntegrationMode));
+        OnPropertyChanged(nameof(IsMcpIntegrationSelected));
+        OnPropertyChanged(nameof(IsLegacyIntegrationSelected));
+        OnPropertyChanged(nameof(StepCreateLabel));
+        OnPropertyChanged(nameof(StepConfigureLabel));
+        OnPropertyChanged(nameof(IntegrationModeTitle));
+        OnPropertyChanged(nameof(IntegrationModeSummary));
+        NotifySchemaChanged();
     }
 
     private string? ResolveSchemaRelayUrl()

@@ -15,6 +15,7 @@ public sealed class LocalRelayServerService
     private readonly Action<LocalRelayStatus> _onStatusChanged;
     private readonly Action<ToolRequest, ToolResponse>? _onRelayTerminalResult;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly RelayContentService _relayContentService = new();
 
     private WebApplication? _app;
     private DeviceBroker? _broker;
@@ -72,6 +73,91 @@ public sealed class LocalRelayServerService
             app.Map(
                 "/ws/device",
                 context => broker.HandleWebSocketAsync(context));
+
+            foreach (var path in new[] { "/openapi.actions.json", "/docs/openapi.actions.json" })
+            {
+                app.MapGet(
+                    path,
+                    async context =>
+                    {
+                        context.Response.ContentType = "application/json; charset=utf-8";
+                        await context.Response.WriteAsync(_relayContentService.GetOpenApiJson(GetPublicBaseUrl(context.Request)));
+                    });
+            }
+
+            foreach (var path in new[] { "/openapi.actions.yaml", "/openapi.yaml", "/docs/openapi.actions.yaml", "/docs/openapi.yaml" })
+            {
+                app.MapGet(
+                    path,
+                    async context =>
+                    {
+                        context.Response.ContentType = "application/yaml; charset=utf-8";
+                        await context.Response.WriteAsync(_relayContentService.GetOpenApiYaml(GetPublicBaseUrl(context.Request)));
+                    });
+            }
+
+            foreach (var path in new[] { "/custom-gpt-instructions.md", "/docs/custom-gpt-instructions.md" })
+            {
+                app.MapGet(
+                    path,
+                    async context =>
+                    {
+                        context.Response.ContentType = "text/markdown; charset=utf-8";
+                        await context.Response.WriteAsync(RelayContentService.GptInstructions);
+                    });
+            }
+
+            app.MapPost(
+                "/mcp",
+                async context =>
+                {
+                    if (!TryAuthorize(context, config.ApiPrincipals, out var principal, out var authResult))
+                    {
+                        await authResult.ExecuteAsync(context);
+                        return;
+                    }
+
+                    var bodyResult = await ReadJsonNodeAsync(context.Request);
+                    if (!bodyResult.Ok)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                        await context.Response.WriteAsJsonAsync(
+                            new JsonObject
+                            {
+                                ["jsonrpc"] = "2.0",
+                                ["id"] = null,
+                                ["error"] = new JsonObject
+                                {
+                                    ["code"] = -32700,
+                                    ["message"] = "Parse error",
+                                },
+                            },
+                            JsonDefaults.Transport);
+                        return;
+                    }
+
+                    var result = await McpProtocolService.HandleHttpBodyAsync(
+                        bodyResult.Body,
+                        principal,
+                        _relayContentService.GetOpenApiJson(GetPublicBaseUrl(context.Request)),
+                        (request, token) => broker.DispatchAsync(request, token),
+                        context.RequestAborted);
+
+                    context.Response.StatusCode = result.StatusCode;
+                    if (result.Body is not null)
+                    {
+                        await context.Response.WriteAsJsonAsync(result.Body, JsonDefaults.Transport);
+                    }
+                });
+
+            app.MapGet(
+                "/mcp",
+                context =>
+                {
+                    context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
+                    context.Response.Headers.Allow = "POST";
+                    return Task.CompletedTask;
+                });
 
             foreach (var (tool, route) in ProtocolConstants.ToolRouteMap)
             {
@@ -149,7 +235,7 @@ public sealed class LocalRelayServerService
                         context.Response.StatusCode = string.Equals(response.Status, "error", StringComparison.Ordinal)
                             ? StatusCodes.Status400BadRequest
                             : StatusCodes.Status200OK;
-                        await context.Response.WriteAsJsonAsync(response, JsonDefaults.Transport);
+                        await context.Response.WriteAsJsonAsync(CreateActionToolResponse(response), JsonDefaults.Transport);
                     });
             }
 
@@ -329,6 +415,25 @@ public sealed class LocalRelayServerService
         }
     }
 
+    private static async Task<(bool Ok, JsonNode? Body)> ReadJsonNodeAsync(HttpRequest request)
+    {
+        using var reader = new StreamReader(request.Body);
+        var text = await reader.ReadToEndAsync();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return (false, null);
+        }
+
+        try
+        {
+            return (true, JsonNode.Parse(text));
+        }
+        catch
+        {
+            return (false, null);
+        }
+    }
+
     private static RelayConfig CreateConfig(CompanionSettings settings)
     {
         var port = GetLocalRelayPort(settings.RelayUrl);
@@ -369,8 +474,202 @@ public sealed class LocalRelayServerService
     private static bool ToolRequiresWorkspaceRoot(string tool)
     {
         return !string.Equals(tool, "list_trusted_workspaces", StringComparison.Ordinal) &&
+               !string.Equals(tool, "get_gpt_instructions", StringComparison.Ordinal) &&
                !string.Equals(tool, "list_skills", StringComparison.Ordinal) &&
-               !string.Equals(tool, "get_skill", StringComparison.Ordinal);
+               !string.Equals(tool, "get_skill", StringComparison.Ordinal) &&
+               !string.Equals(tool, "write_stdin", StringComparison.Ordinal) &&
+               !string.Equals(tool, "request_permissions", StringComparison.Ordinal);
+    }
+
+    private static JsonObject CreateActionToolResponse(ToolResponse response)
+    {
+        var payload = JsonSerializer.SerializeToNode(response, JsonDefaults.Transport) as JsonObject ?? new JsonObject();
+        if (!string.Equals(response.Status, "ok", StringComparison.Ordinal) ||
+            !TryCreateActionImage(response.Result, out var actionImage))
+        {
+            return payload;
+        }
+
+        payload["result"] = SanitizeInlineImageData(response.Result);
+        payload["actionImage"] = actionImage;
+        return payload;
+    }
+
+    private static bool TryCreateActionImage(JsonNode? result, out JsonObject actionImage)
+    {
+        actionImage = new JsonObject();
+        if (result is not JsonObject obj)
+        {
+            return false;
+        }
+
+        var mimeType = GetString(obj, "mimeType");
+        var content = GetString(obj, "data") ?? GetString(obj, "base64");
+        var dataUrl = GetString(obj, "dataUrl");
+        if (!string.IsNullOrWhiteSpace(dataUrl))
+        {
+            var parsed = TryParseDataUrl(dataUrl);
+            if (parsed is not null)
+            {
+                mimeType = parsed.Value.MimeType;
+                content = parsed.Value.Content;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(mimeType) ||
+            string.IsNullOrWhiteSpace(content) ||
+            !mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        actionImage = new JsonObject
+        {
+            ["name"] = GetActionImageName(GetString(obj, "path"), mimeType),
+            ["mime_type"] = mimeType,
+            ["content"] = content,
+            ["bytes"] = TryGetLong(obj, "bytes"),
+            ["note"] = "Inline image bytes for GPT Actions. MCP clients receive this same payload as image content.",
+        };
+        return true;
+    }
+
+    private static (string MimeType, string Content)? TryParseDataUrl(string value)
+    {
+        const string marker = ";base64,";
+        if (!value.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var markerIndex = value.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (markerIndex < 0)
+        {
+            return null;
+        }
+
+        var mimeType = value["data:".Length..markerIndex];
+        var content = value[(markerIndex + marker.Length)..];
+        return string.IsNullOrWhiteSpace(mimeType) || string.IsNullOrWhiteSpace(content)
+            ? null
+            : (mimeType, content);
+    }
+
+    private static JsonNode? SanitizeInlineImageData(JsonNode? node)
+    {
+        switch (node)
+        {
+            case null:
+                return null;
+            case JsonArray array:
+            {
+                var clone = new JsonArray();
+                foreach (var item in array)
+                {
+                    clone.Add(SanitizeInlineImageData(item));
+                }
+
+                return clone;
+            }
+            case JsonObject obj:
+            {
+                var clone = new JsonObject();
+                var removeInlineImageFields = IsInlineImageObject(obj);
+                var removedImageData = false;
+                foreach (var (key, value) in obj)
+                {
+                    if (removeInlineImageFields &&
+                        (string.Equals(key, "dataUrl", StringComparison.Ordinal) ||
+                         string.Equals(key, "data", StringComparison.Ordinal) ||
+                         string.Equals(key, "base64", StringComparison.Ordinal)))
+                    {
+                        removedImageData = true;
+                        continue;
+                    }
+
+                    clone[key] = SanitizeInlineImageData(value);
+                }
+
+                if (removedImageData)
+                {
+                    clone["actionImageReturned"] = true;
+                }
+
+                return clone;
+            }
+            default:
+                return node.DeepClone();
+        }
+    }
+
+    private static bool IsInlineImageObject(JsonObject obj)
+    {
+        var mimeType = GetString(obj, "mimeType");
+        var hasImageMimeType = mimeType?.StartsWith("image/", StringComparison.OrdinalIgnoreCase) == true;
+        return !string.IsNullOrWhiteSpace(GetString(obj, "dataUrl")) ||
+               (hasImageMimeType &&
+                (!string.IsNullOrWhiteSpace(GetString(obj, "data")) ||
+                 !string.IsNullOrWhiteSpace(GetString(obj, "base64"))));
+    }
+
+    private static string? GetString(JsonObject obj, string key)
+    {
+        try
+        {
+            return obj[key]?.GetValue<string>();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static long? TryGetLong(JsonObject obj, string key)
+    {
+        try
+        {
+            return obj[key]?.GetValue<long>();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string GetActionImageName(string? path, string mimeType)
+    {
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            return Path.GetFileName(path);
+        }
+
+        return $"image.{MimeTypeToExtension(mimeType)}";
+    }
+
+    private static string MimeTypeToExtension(string mimeType)
+    {
+        return mimeType.ToLowerInvariant() switch
+        {
+            "image/jpeg" => "jpg",
+            "image/gif" => "gif",
+            "image/webp" => "webp",
+            "image/bmp" => "bmp",
+            "image/svg+xml" => "svg",
+            _ => "png",
+        };
+    }
+
+    private static string GetPublicBaseUrl(HttpRequest request)
+    {
+        var forwardedProto = request.Headers["x-forwarded-proto"].FirstOrDefault()?.Split(',')[0].Trim();
+        var forwardedHost = request.Headers["x-forwarded-host"].FirstOrDefault()?.Split(',')[0].Trim();
+        var host = !string.IsNullOrWhiteSpace(forwardedHost)
+            ? forwardedHost
+            : request.Host.HasValue
+                ? request.Host.Value
+                : "localhost:8787";
+        var proto = !string.IsNullOrWhiteSpace(forwardedProto) ? forwardedProto : request.Scheme;
+        return $"{proto}://{host}".TrimEnd('/');
     }
 
     private void SetStatus(LocalRelayStatus status)

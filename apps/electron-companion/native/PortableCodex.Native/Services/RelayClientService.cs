@@ -14,6 +14,7 @@ public sealed class RelayClientService
     private readonly Func<ToolRequest, Task<ToolResponse>> _onToolRequest;
     private readonly Action<RelayConnectionStatus> _onStatusChange;
     private readonly object _sync = new();
+    private readonly SemaphoreSlim _sendGate = new(1, 1);
 
     private ClientWebSocket? _socket;
     private CancellationTokenSource? _lifecycleCts;
@@ -203,7 +204,7 @@ public sealed class RelayClientService
         }
     }
 
-    private static async Task SendHelloAsync(ClientWebSocket socket, CompanionSettings settings, CancellationToken cancellationToken)
+    private async Task SendHelloAsync(ClientWebSocket socket, CompanionSettings settings, CancellationToken cancellationToken)
     {
         var hello = new JsonObject
         {
@@ -263,50 +264,108 @@ public sealed class RelayClientService
                 continue;
             }
 
-            ToolResponse response;
+            ToolRequest request;
             try
             {
-                var request = requestNode.Deserialize<ToolRequest>(JsonDefaults.Transport);
-                if (request is null)
-                {
-                    throw new InvalidOperationException("Invalid tool request payload");
-                }
+                request = requestNode.Deserialize<ToolRequest>(JsonDefaults.Transport)
+                    ?? throw new InvalidOperationException("Invalid tool request payload");
 
                 if (string.IsNullOrWhiteSpace(request.RequestId))
                 {
                     request.RequestId = Guid.NewGuid().ToString();
                 }
-
-                response = await _onToolRequest(request);
             }
             catch (Exception ex)
             {
-                response = new ToolResponse
-                {
-                    RequestId = message["request"]?["requestId"]?.GetValue<string>() ?? Guid.NewGuid().ToString(),
-                    Status = "error",
-                    Error = new ToolError
+                await SendToolResponseAsync(
+                    socket,
+                    new ToolResponse
                     {
-                        Code = "REQUEST_HANDLER_ERROR",
-                        Message = ex.Message,
+                        RequestId = message["request"]?["requestId"]?.GetValue<string>() ?? Guid.NewGuid().ToString(),
+                        Status = "error",
+                        Error = new ToolError
+                        {
+                            Code = "REQUEST_HANDLER_ERROR",
+                            Message = ex.Message,
+                        },
                     },
-                };
+                    cancellationToken);
+                continue;
             }
 
-            var outgoing = new JsonObject
-            {
-                ["type"] = "tool:response",
-                ["response"] = JsonSerializer.SerializeToNode(response, JsonDefaults.Transport),
-            };
-            await SendJsonAsync(socket, outgoing, cancellationToken);
+            _ = Task.Run(() => HandleToolRequestAndSendResponseAsync(socket, request, cancellationToken));
         }
     }
 
-    private static async Task SendJsonAsync(ClientWebSocket socket, JsonObject payload, CancellationToken cancellationToken)
+    private async Task HandleToolRequestAndSendResponseAsync(
+        ClientWebSocket socket,
+        ToolRequest request,
+        CancellationToken cancellationToken)
     {
+        ToolResponse response;
+        try
+        {
+            response = await _onToolRequest(request);
+        }
+        catch (Exception ex)
+        {
+            response = new ToolResponse
+            {
+                RequestId = request.RequestId,
+                Status = "error",
+                Error = new ToolError
+                {
+                    Code = "REQUEST_HANDLER_ERROR",
+                    Message = ex.Message,
+                },
+            };
+        }
+
+        try
+        {
+            await SendToolResponseAsync(socket, response, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task SendToolResponseAsync(ClientWebSocket socket, ToolResponse response, CancellationToken cancellationToken)
+    {
+        var outgoing = new JsonObject
+        {
+            ["type"] = "tool:response",
+            ["response"] = JsonSerializer.SerializeToNode(response, JsonDefaults.Transport),
+        };
+        await SendJsonAsync(socket, outgoing, cancellationToken);
+    }
+
+    private async Task SendJsonAsync(ClientWebSocket socket, JsonObject payload, CancellationToken cancellationToken)
+    {
+        if (socket.State != WebSocketState.Open)
+        {
+            throw new InvalidOperationException("WebSocket is not open");
+        }
+
         var json = payload.ToJsonString(JsonDefaults.Transport);
         var bytes = Encoding.UTF8.GetBytes(json);
-        await socket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+        await _sendGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (socket.State != WebSocketState.Open)
+            {
+                throw new InvalidOperationException("WebSocket is not open");
+            }
+
+            await socket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+        }
+        finally
+        {
+            _sendGate.Release();
+        }
     }
 
     private static async Task<string?> ReceiveTextAsync(ClientWebSocket socket, CancellationToken cancellationToken)

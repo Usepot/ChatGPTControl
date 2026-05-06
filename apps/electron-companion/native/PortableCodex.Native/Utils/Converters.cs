@@ -25,8 +25,8 @@ public sealed class StepVisibilityConverter : IValueConverter
 public sealed class StepBrushConverter : IValueConverter
 {
     private static readonly SolidColorBrush Completed = Freeze(new SolidColorBrush(WpfColor.FromRgb(16, 185, 129)));
-    private static readonly SolidColorBrush Active = Freeze(new SolidColorBrush(WpfColor.FromRgb(59, 130, 246)));
-    private static readonly SolidColorBrush Upcoming = Freeze(new SolidColorBrush(WpfColor.FromRgb(209, 213, 219)));
+    private static readonly SolidColorBrush Active = Freeze(new SolidColorBrush(WpfColor.FromRgb(124, 58, 237)));
+    private static readonly SolidColorBrush Upcoming = Freeze(new SolidColorBrush(WpfColor.FromArgb(0x30, 0xFF, 0xFF, 0xFF)));
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
@@ -52,17 +52,19 @@ public sealed class StepBrushConverter : IValueConverter
 
 public sealed class StepForegroundConverter : IValueConverter
 {
-    private static readonly SolidColorBrush ActiveOrDone = Freeze(new SolidColorBrush(WpfColor.FromRgb(17, 24, 39)));
-    private static readonly SolidColorBrush Inactive = Freeze(new SolidColorBrush(WpfColor.FromRgb(156, 163, 175)));
+    private static readonly SolidColorBrush ActiveOrDoneFallback = Freeze(new SolidColorBrush(WpfColor.FromRgb(250, 250, 250)));
+    private static readonly SolidColorBrush InactiveFallback = Freeze(new SolidColorBrush(WpfColor.FromRgb(113, 113, 122)));
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value is int current && parameter is string s && int.TryParse(s, out var step))
         {
-            return step <= current ? ActiveOrDone : Inactive;
+            return step <= current
+                ? GetThemeBrush("PrimaryFg", ActiveOrDoneFallback)
+                : GetThemeBrush("TertiaryFg", InactiveFallback);
         }
 
-        return Inactive;
+        return GetThemeBrush("TertiaryFg", InactiveFallback);
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
@@ -73,12 +75,17 @@ public sealed class StepForegroundConverter : IValueConverter
         brush.Freeze();
         return brush;
     }
+
+    private static SolidColorBrush GetThemeBrush(string key, SolidColorBrush fallback)
+    {
+        return System.Windows.Application.Current?.Resources[key] as SolidColorBrush ?? fallback;
+    }
 }
 
 public sealed class StepLineBrushConverter : IValueConverter
 {
-    private static readonly SolidColorBrush Done = Freeze(new SolidColorBrush(WpfColor.FromRgb(16, 185, 129)));
-    private static readonly SolidColorBrush Pending = Freeze(new SolidColorBrush(WpfColor.FromRgb(229, 231, 235)));
+    private static readonly SolidColorBrush Done = Freeze(new SolidColorBrush(WpfColor.FromRgb(124, 58, 237)));
+    private static readonly SolidColorBrush Pending = Freeze(new SolidColorBrush(WpfColor.FromArgb(0x20, 0xFF, 0xFF, 0xFF)));
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
@@ -120,10 +127,10 @@ public sealed class InverseBoolToVisibilityConverter : IValueConverter
 
 public sealed class StatusDotBrushConverter : IValueConverter
 {
-    private static readonly SolidColorBrush Connected = Freeze(new SolidColorBrush(WpfColor.FromRgb(16, 185, 129)));
-    private static readonly SolidColorBrush Connecting = Freeze(new SolidColorBrush(WpfColor.FromRgb(245, 158, 11)));
+    private static readonly SolidColorBrush Connected = Freeze(new SolidColorBrush(WpfColor.FromRgb(34, 197, 94)));
+    private static readonly SolidColorBrush Connecting = Freeze(new SolidColorBrush(WpfColor.FromRgb(250, 204, 21)));
     private static readonly SolidColorBrush Error = Freeze(new SolidColorBrush(WpfColor.FromRgb(239, 68, 68)));
-    private static readonly SolidColorBrush Offline = Freeze(new SolidColorBrush(WpfColor.FromRgb(156, 163, 175)));
+    private static readonly SolidColorBrush Offline = Freeze(new SolidColorBrush(WpfColor.FromRgb(113, 113, 122)));
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {

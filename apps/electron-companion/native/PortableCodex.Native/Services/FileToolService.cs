@@ -1,9 +1,13 @@
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Windows.Forms;
 using PortableCodex.Native.Models;
 using PortableCodex.Native.Utils;
 
@@ -22,7 +26,11 @@ public sealed class FileToolService
     private const int DefaultCommandTimeoutMs = 60_000;
     private const int MaxCommandTimeoutMs = 300_000;
     private const int DefaultCommandMaxOutputBytes = 200_000;
+    private const int DefaultImageMaxBytes = 5_000_000;
+    private const int DefaultYieldTimeMs = 1_000;
     private const int MaxSearchThreadCount = 32;
+    private static readonly ConcurrentDictionary<int, ShellSession> ShellSessions = new();
+    private static int NextShellSessionId;
     private static readonly HashSet<string> SearchSkipDirs = new(StringComparer.OrdinalIgnoreCase)
     {
         ".git",
@@ -46,6 +54,11 @@ public sealed class FileToolService
             if (request.Tool == "list_trusted_workspaces")
             {
                 return Error(request.RequestId, "UNSUPPORTED_TOOL", "Workspace discovery is handled outside the file tool service");
+            }
+
+            if (request.Tool == "write_stdin")
+            {
+                return await HandleWriteStdinAsync(request, cancellationToken);
             }
 
             if (string.IsNullOrWhiteSpace(request.WorkspaceRoot))
@@ -72,7 +85,9 @@ public sealed class FileToolService
                 "stat_path" => Ok(request.RequestId, await StatPathAsync(request.WorkspaceRoot, request.Path ?? ".", cancellationToken)),
                 "make_dir" => Ok(request.RequestId, await MakeDirAsync(request.WorkspaceRoot, RequirePath(request), cancellationToken)),
                 "delete_path" => await HandleDeleteRequestAsync(request, context, cancellationToken),
-                "run_command" => await HandleRunCommandAsync(request, context, cancellationToken),
+                "run_command" or "shell" or "exec_command" or "shell_command" => await HandleRunCommandAsync(request, context, cancellationToken),
+                "view_image" => Ok(request.RequestId, await ViewImageAsync(request.WorkspaceRoot!, RequirePath(request), request.MaxBytes, cancellationToken)),
+                "screenshot_desktop" => await HandleScreenshotDesktopAsync(request, context, cancellationToken),
                 _ => Error(request.RequestId, "UNSUPPORTED_TOOL", "Unsupported tool"),
             };
         }
@@ -87,6 +102,7 @@ public sealed class FileToolService
         return request.Tool switch
         {
             "list_trusted_workspaces" => "List trusted workspaces",
+            "get_gpt_instructions" => "Get GPT instructions",
             "list_skills" => "List skills",
             "get_skill" => $"Get skill /{request.SkillName}",
             "list_dir" => $"List {request.Path ?? "."} in {Path.GetFileName(_pathPolicy.NormalizeWorkspaceRoot(request.WorkspaceRoot ?? string.Empty))}",
@@ -97,7 +113,11 @@ public sealed class FileToolService
             "stat_path" => $"Stat {request.Path ?? "."}",
             "make_dir" => $"Create directory {request.Path}",
             "delete_path" => $"Delete {request.Path}",
-            "run_command" => $"Run {request.Command}",
+            "run_command" or "shell" or "exec_command" or "shell_command" => $"Run {GetEffectiveCommand(request)}",
+            "write_stdin" => "Write stdin to running command",
+            "request_permissions" => "Request sandbox permissions",
+            "view_image" => $"View image {request.Path}",
+            "screenshot_desktop" => $"Capture desktop screenshot to {request.Path ?? "desktop_screenshot.png"}",
             _ => "Unknown request",
         };
     }
@@ -676,6 +696,121 @@ public sealed class FileToolService
         };
     }
 
+    private async Task<object> ViewImageAsync(
+        string workspaceRoot,
+        string targetPath,
+        int? maxBytes,
+        CancellationToken cancellationToken)
+    {
+        var absolutePath = _pathPolicy.ResolvePathWithinWorkspace(workspaceRoot, targetPath);
+        if (!File.Exists(absolutePath))
+        {
+            throw new FileNotFoundException($"Image file does not exist: {targetPath}");
+        }
+
+        var bytes = await File.ReadAllBytesAsync(absolutePath, cancellationToken);
+        var limit = maxBytes.GetValueOrDefault(DefaultImageMaxBytes);
+        if (limit <= 0)
+        {
+            limit = DefaultImageMaxBytes;
+        }
+
+        if (bytes.Length > limit)
+        {
+            throw new InvalidOperationException($"Image is {bytes.Length} bytes, which exceeds maxBytes={limit}");
+        }
+
+        var mimeType = GetImageMimeType(absolutePath);
+        return new
+        {
+            path = targetPath,
+            mimeType,
+            bytes = bytes.Length,
+            dataUrl = $"data:{mimeType};base64,{Convert.ToBase64String(bytes)}",
+        };
+    }
+
+    private static string GetImageMimeType(string path)
+    {
+        return Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".bmp" => "image/bmp",
+            ".svg" => "image/svg+xml",
+            _ => throw new InvalidOperationException("view_image supports png, jpg, jpeg, gif, webp, bmp, and svg files"),
+        };
+    }
+
+    private async Task<ToolResponse> HandleScreenshotDesktopAsync(
+        ToolRequest request,
+        ToolExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        var path = string.IsNullOrWhiteSpace(request.Path) ? "desktop_screenshot.png" : request.Path;
+        if (!string.Equals(request.Screen ?? "primary", "primary", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("screenshot_desktop currently supports screen=primary only");
+        }
+
+        var approved = await EnsureWriteApprovalAsync(
+            request,
+            $"Capture primary desktop screenshot to {path}",
+            context);
+        if (!approved)
+        {
+            return Denied(request.RequestId, "User denied screenshot_desktop request");
+        }
+
+        var absolutePath = _pathPolicy.ResolvePathWithinWorkspace(request.WorkspaceRoot!, path);
+        var parent = Path.GetDirectoryName(absolutePath);
+        if (!string.IsNullOrWhiteSpace(parent))
+        {
+            Directory.CreateDirectory(parent);
+        }
+
+        var bounds = Rectangle.Empty;
+        await Task.Run(() =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            bounds = Screen.PrimaryScreen?.Bounds
+                ?? throw new InvalidOperationException("No primary screen is available");
+            using var bitmap = new Bitmap(bounds.Width, bounds.Height);
+            using var graphics = Graphics.FromImage(bitmap);
+            graphics.CopyFromScreen(bounds.Location, System.Drawing.Point.Empty, bounds.Size);
+            bitmap.Save(absolutePath, ImageFormat.Png);
+        }, cancellationToken);
+
+        var fileInfo = new FileInfo(absolutePath);
+        var inlineLimit = request.MaxBytes.GetValueOrDefault(DefaultImageMaxBytes);
+        if (inlineLimit <= 0)
+        {
+            inlineLimit = DefaultImageMaxBytes;
+        }
+
+        var inlineImageReturned = fileInfo.Length <= inlineLimit;
+        var dataUrl = inlineImageReturned
+            ? $"data:image/png;base64,{Convert.ToBase64String(await File.ReadAllBytesAsync(absolutePath, cancellationToken))}"
+            : null;
+
+        return Ok(
+            request.RequestId,
+            new
+            {
+                path,
+                screen = "primary",
+                width = bounds.Width,
+                height = bounds.Height,
+                bytes = fileInfo.Length,
+                mimeType = "image/png",
+                dataUrl,
+                inlineImageReturned,
+                inlineImageTruncated = !inlineImageReturned,
+            });
+    }
+
     private static int GetSearchThreadCount(ToolRequest request)
     {
         var requested = request.MaxSearchThreads.GetValueOrDefault(Environment.ProcessorCount);
@@ -890,77 +1025,203 @@ public sealed class FileToolService
 
     private async Task<ToolResponse> HandleRunCommandAsync(ToolRequest request, ToolExecutionContext context, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Command))
+        var command = GetEffectiveCommandSpec(request);
+        if (command.IsEmpty)
         {
-            throw new InvalidOperationException("command is required for run_command");
+            throw new InvalidOperationException($"command is required for {request.Tool}");
         }
 
-        var workingDirectory = string.IsNullOrWhiteSpace(request.WorkingDirectory) ? "." : request.WorkingDirectory;
+        var workingDirectory = GetEffectiveWorkingDirectory(request);
         var absoluteWorkingDirectory = _pathPolicy.ResolvePathWithinWorkspace(request.WorkspaceRoot!, workingDirectory);
         if (!Directory.Exists(absoluteWorkingDirectory))
         {
             throw new DirectoryNotFoundException($"Working directory does not exist: {workingDirectory}");
         }
 
-        var timeoutMs = request.TimeoutMs.GetValueOrDefault(DefaultCommandTimeoutMs);
+        var timeoutMs = (request.TimeoutMs ?? request.TimeoutMsSnake).GetValueOrDefault(DefaultCommandTimeoutMs);
         timeoutMs = Math.Clamp(timeoutMs, 1_000, MaxCommandTimeoutMs);
-        var maxOutputBytes = request.MaxOutputBytes.GetValueOrDefault(DefaultCommandMaxOutputBytes);
-        maxOutputBytes = Math.Clamp(maxOutputBytes, 1, DefaultCommandMaxOutputBytes);
+        var maxOutputBytes = GetEffectiveMaxOutputBytes(request);
+        var stdin = request.Stdin ?? request.Input;
 
         var approved = await EnsureWriteApprovalAsync(
             request,
-            $"Run command in {workingDirectory}: {request.Command}",
+            $"Run command in {workingDirectory}: {command.Display}",
             context);
         if (!approved)
         {
-            return Denied(request.RequestId, "User denied run_command request");
+            return Denied(request.RequestId, $"User denied {request.Tool} request");
+        }
+
+        if (string.Equals(request.Tool, "exec_command", StringComparison.Ordinal))
+        {
+            return await RunPersistentExecCommandAsync(
+                request,
+                command,
+                workingDirectory,
+                absoluteWorkingDirectory,
+                timeoutMs,
+                maxOutputBytes,
+                stdin,
+                cancellationToken);
         }
 
         return await RunCommandAsync(
             request.RequestId,
-            request.Command,
+            command,
             workingDirectory,
             absoluteWorkingDirectory,
             timeoutMs,
             maxOutputBytes,
+            stdin,
             cancellationToken);
+    }
+
+    private static async Task<ToolResponse> HandleWriteStdinAsync(ToolRequest request, CancellationToken cancellationToken)
+    {
+        var sessionId = GetEffectiveSessionId(request);
+        if (sessionId is null)
+        {
+            return Error(request.RequestId, "MISSING_SESSION_ID", "session_id is required for write_stdin");
+        }
+
+        if (!ShellSessions.TryGetValue(sessionId.Value, out var session))
+        {
+            return Error(request.RequestId, "UNKNOWN_PROCESS_ID", $"Unknown process id {sessionId.Value}");
+        }
+
+        var chars = request.Chars ?? request.Stdin ?? request.Input ?? string.Empty;
+        if (chars.Length > 0)
+        {
+            if (!session.StdinOpen)
+            {
+                return Error(
+                    request.RequestId,
+                    "STDIN_CLOSED",
+                    "stdin is closed for this session; rerun exec_command with tty=true to keep stdin open");
+            }
+
+            try
+            {
+                lock (session.InputLock)
+                {
+                    session.Process.StandardInput.Write(chars);
+                    session.Process.StandardInput.Flush();
+                }
+            }
+            catch
+            {
+                session.StdinOpen = false;
+                return Error(request.RequestId, "WRITE_TO_STDIN", "failed to write to stdin");
+            }
+        }
+
+        var wait = Stopwatch.StartNew();
+        await WaitForProcessOrDelayAsync(session.Process, GetEffectiveYieldTimeMs(request), cancellationToken);
+        wait.Stop();
+
+        var result = BuildUnifiedExecResult(session, GetEffectiveMaxOutputBytes(request), wait.Elapsed);
+        if (session.Process.HasExited)
+        {
+            ShellSessions.TryRemove(session.Id, out _);
+            session.Dispose();
+        }
+
+        return Ok(request.RequestId, result);
+    }
+
+    private static string? GetEffectiveCommand(ToolRequest request)
+    {
+        return GetEffectiveCommandSpec(request).Display;
+    }
+
+    private static CommandSpec GetEffectiveCommandSpec(ToolRequest request)
+    {
+        if (request.Command is JsonArray commandArray)
+        {
+            var args = commandArray
+                .Select(item => item?.GetValue<string>() ?? string.Empty)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .ToList();
+            return args.Count == 0
+                ? CommandSpec.Empty
+                : CommandSpec.FromArgv(args);
+        }
+
+        if (request.Command is JsonValue commandValue && commandValue.TryGetValue<string>(out var commandString))
+        {
+            return CommandSpec.FromShellLine(commandString);
+        }
+
+        return CommandSpec.FromShellLine(FirstNonWhiteSpace(request.Cmd, request.CommandLine));
+    }
+
+    private static string GetEffectiveWorkingDirectory(ToolRequest request)
+    {
+        return FirstNonWhiteSpace(request.WorkingDirectory, request.WorkingDirectorySnake, request.Workdir) ?? ".";
+    }
+
+    private static int GetEffectiveYieldTimeMs(ToolRequest request)
+    {
+        return Math.Clamp(request.YieldTimeMs.GetValueOrDefault(DefaultYieldTimeMs), 0, MaxCommandTimeoutMs);
+    }
+
+    private static int GetEffectiveMaxOutputBytes(ToolRequest request)
+    {
+        var requested = request.MaxOutputBytes ?? request.MaxOutputBytesSnake;
+        if (requested is null && request.MaxOutputTokens is not null)
+        {
+            requested = Math.Max(1, request.MaxOutputTokens.Value) * 4;
+        }
+
+        return Math.Clamp(requested.GetValueOrDefault(DefaultCommandMaxOutputBytes), 1, DefaultCommandMaxOutputBytes);
+    }
+
+    private static int? GetEffectiveSessionId(ToolRequest request)
+    {
+        if (request.SessionIdSnake is not null)
+        {
+            return request.SessionIdSnake;
+        }
+
+        if (int.TryParse(request.SessionId, out var sessionId))
+        {
+            return sessionId;
+        }
+
+        if (int.TryParse(request.ProcessId, out var processId))
+        {
+            return processId;
+        }
+
+        return null;
+    }
+
+    private static string? FirstNonWhiteSpace(params string?[] values)
+    {
+        return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
     }
 
     private static async Task<ToolResponse> RunCommandAsync(
         string requestId,
-        string command,
+        CommandSpec command,
         string workingDirectory,
         string absoluteWorkingDirectory,
         int timeoutMs,
         int maxOutputBytes,
+        string? stdin,
         CancellationToken cancellationToken)
     {
         using var process = new Process();
-        process.StartInfo = new ProcessStartInfo
-        {
-            FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh",
-            WorkingDirectory = absoluteWorkingDirectory,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-
-        if (OperatingSystem.IsWindows())
-        {
-            process.StartInfo.ArgumentList.Add("/d");
-            process.StartInfo.ArgumentList.Add("/c");
-            process.StartInfo.ArgumentList.Add(command);
-        }
-        else
-        {
-            process.StartInfo.ArgumentList.Add("-lc");
-            process.StartInfo.ArgumentList.Add(command);
-        }
+        process.StartInfo = CreateProcessStartInfo(command, absoluteWorkingDirectory, redirectStdin: stdin is not null);
 
         process.Start();
+        if (stdin is not null)
+        {
+            await process.StandardInput.WriteAsync(stdin.AsMemory(), cancellationToken);
+            await process.StandardInput.FlushAsync(cancellationToken);
+            process.StandardInput.Close();
+        }
+
         var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
         var timedOut = false;
@@ -991,13 +1252,16 @@ public sealed class FileToolService
         var exitCode = process.HasExited ? process.ExitCode : (int?)null;
         var result = new
         {
-            command,
+            command = command.Display,
             workingDirectory,
             exitCode,
+            exit_code = exitCode,
             timedOut,
             timeoutMs,
+            stdinProvided = stdin is not null,
             stdout,
             stderr,
+            output = string.IsNullOrEmpty(stderr) ? stdout : stdout + stderr,
             stdoutTruncated,
             stderrTruncated,
         };
@@ -1018,6 +1282,182 @@ public sealed class FileToolService
         }
 
         return Ok(requestId, result);
+    }
+
+    private static async Task<ToolResponse> RunPersistentExecCommandAsync(
+        ToolRequest request,
+        CommandSpec command,
+        string workingDirectory,
+        string absoluteWorkingDirectory,
+        int timeoutMs,
+        int maxOutputBytes,
+        string? stdin,
+        CancellationToken cancellationToken)
+    {
+        var sessionId = Interlocked.Increment(ref NextShellSessionId);
+        var process = new Process
+        {
+            StartInfo = CreateProcessStartInfo(command, absoluteWorkingDirectory, redirectStdin: true),
+            EnableRaisingEvents = true,
+        };
+        var session = new ShellSession(sessionId, process, command.Display, workingDirectory, keepStdinOpen: request.Tty == true);
+
+        try
+        {
+            process.Start();
+        }
+        catch
+        {
+            process.Dispose();
+            throw;
+        }
+
+        ShellSessions[sessionId] = session;
+        _ = Task.Run(() => ReadProcessStreamAsync(process.StandardOutput, session));
+        _ = Task.Run(() => ReadProcessStreamAsync(process.StandardError, session));
+
+        if (stdin is not null)
+        {
+            await process.StandardInput.WriteAsync(stdin.AsMemory(), cancellationToken);
+            await process.StandardInput.FlushAsync(cancellationToken);
+        }
+
+        if (request.Tty != true)
+        {
+            session.CloseStdin();
+        }
+
+        var wait = Stopwatch.StartNew();
+        await WaitForProcessOrDelayAsync(process, GetEffectiveYieldTimeMs(request), cancellationToken);
+        wait.Stop();
+
+        if (!process.HasExited)
+        {
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(timeoutMs, CancellationToken.None);
+                if (!process.HasExited)
+                {
+                    try
+                    {
+                        process.Kill(entireProcessTree: true);
+                    }
+                    catch
+                    {
+                        // Best effort; the process may already have exited.
+                    }
+                }
+            });
+        }
+
+        var result = BuildUnifiedExecResult(session, maxOutputBytes, wait.Elapsed);
+        if (process.HasExited)
+        {
+            ShellSessions.TryRemove(sessionId, out _);
+            session.Dispose();
+        }
+
+        return Ok(request.RequestId, result);
+    }
+
+    private static ProcessStartInfo CreateProcessStartInfo(CommandSpec command, string absoluteWorkingDirectory, bool redirectStdin)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            WorkingDirectory = absoluteWorkingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = redirectStdin,
+            CreateNoWindow = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
+        };
+
+        if (command.Argv is { Count: > 0 })
+        {
+            startInfo.FileName = command.Argv[0];
+            foreach (var arg in command.Argv.Skip(1))
+            {
+                startInfo.ArgumentList.Add(arg);
+            }
+
+            return startInfo;
+        }
+
+        startInfo.FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh";
+        if (OperatingSystem.IsWindows())
+        {
+            startInfo.ArgumentList.Add("/d");
+            startInfo.ArgumentList.Add("/c");
+            startInfo.ArgumentList.Add(command.Display);
+        }
+        else
+        {
+            startInfo.ArgumentList.Add("-lc");
+            startInfo.ArgumentList.Add(command.Display);
+        }
+
+        return startInfo;
+    }
+
+    private static async Task ReadProcessStreamAsync(StreamReader reader, ShellSession session)
+    {
+        var buffer = new char[4096];
+        try
+        {
+            while (true)
+            {
+                var read = await reader.ReadAsync(buffer, 0, buffer.Length);
+                if (read <= 0)
+                {
+                    return;
+                }
+
+                session.AppendOutput(new string(buffer, 0, read));
+            }
+        }
+        catch
+        {
+            // Stream readers are best-effort for long-lived sessions.
+        }
+    }
+
+    private static async Task WaitForProcessOrDelayAsync(Process process, int yieldTimeMs, CancellationToken cancellationToken)
+    {
+        if (process.HasExited || yieldTimeMs <= 0)
+        {
+            return;
+        }
+
+        var delayTask = Task.Delay(yieldTimeMs, cancellationToken);
+        var exitTask = process.WaitForExitAsync(cancellationToken);
+        await Task.WhenAny(delayTask, exitTask);
+    }
+
+    private static object BuildUnifiedExecResult(ShellSession session, int maxOutputBytes, TimeSpan wallTime)
+    {
+        var output = session.TakeUnreadOutput();
+        var limitedOutput = LimitOutput(output, maxOutputBytes, out var outputTruncated);
+        var exitCode = session.Process.HasExited ? session.Process.ExitCode : (int?)null;
+        var runningSessionId = exitCode is null ? session.Id : (int?)null;
+        return new
+        {
+            chunk_id = session.NextChunkId(),
+            wall_time_seconds = wallTime.TotalSeconds,
+            exit_code = exitCode,
+            exitCode,
+            session_id = runningSessionId,
+            sessionId = runningSessionId?.ToString(),
+            original_token_count = Math.Max(1, output.Length / 4),
+            output = limitedOutput,
+            stdout = limitedOutput,
+            stderr = string.Empty,
+            output_truncated = outputTruncated,
+            command = session.Command,
+            workingDirectory = session.WorkingDirectory,
+            stdin_open = session.StdinOpen,
+        };
     }
 
     private static string LimitOutput(string value, int maxBytes, out bool truncated)
@@ -1194,5 +1634,115 @@ public sealed class FileToolService
         public string? NewContent { get; set; }
 
         public string Action { get; set; } = "update";
+    }
+
+    private sealed record CommandSpec(string Display, IReadOnlyList<string>? Argv)
+    {
+        public static CommandSpec Empty { get; } = new(string.Empty, null);
+
+        public bool IsEmpty => string.IsNullOrWhiteSpace(Display) && (Argv is null || Argv.Count == 0);
+
+        public static CommandSpec FromShellLine(string? command)
+        {
+            return string.IsNullOrWhiteSpace(command)
+                ? Empty
+                : new CommandSpec(command, null);
+        }
+
+        public static CommandSpec FromArgv(IReadOnlyList<string> argv)
+        {
+            return new CommandSpec(string.Join(" ", argv.Select(QuoteForDisplay)), argv);
+        }
+
+        private static string QuoteForDisplay(string value)
+        {
+            return value.Any(char.IsWhiteSpace)
+                ? $"\"{value.Replace("\"", "\\\"")}" + "\""
+                : value;
+        }
+    }
+
+    private sealed class ShellSession : IDisposable
+    {
+        private readonly StringBuilder _output = new();
+        private int _readOffset;
+        private int _chunkCounter;
+
+        public ShellSession(int id, Process process, string command, string workingDirectory, bool keepStdinOpen)
+        {
+            Id = id;
+            Process = process;
+            Command = command;
+            WorkingDirectory = workingDirectory;
+            StdinOpen = keepStdinOpen;
+        }
+
+        public int Id { get; }
+
+        public Process Process { get; }
+
+        public string Command { get; }
+
+        public string WorkingDirectory { get; }
+
+        public bool StdinOpen { get; set; }
+
+        public object InputLock { get; } = new();
+
+        public void AppendOutput(string value)
+        {
+            lock (_output)
+            {
+                _output.Append(value);
+            }
+        }
+
+        public string TakeUnreadOutput()
+        {
+            lock (_output)
+            {
+                if (_readOffset >= _output.Length)
+                {
+                    return string.Empty;
+                }
+
+                var value = _output.ToString(_readOffset, _output.Length - _readOffset);
+                _readOffset = _output.Length;
+                return value;
+            }
+        }
+
+        public string NextChunkId()
+        {
+            return $"{Id}:{Interlocked.Increment(ref _chunkCounter)}";
+        }
+
+        public void CloseStdin()
+        {
+            lock (InputLock)
+            {
+                if (!StdinOpen)
+                {
+                    return;
+                }
+
+                try
+                {
+                    Process.StandardInput.Close();
+                }
+                catch
+                {
+                    // Best effort; stdin may already be closed by the child process.
+                }
+
+                StdinOpen = false;
+            }
+        }
+
+        public void Dispose()
+        {
+            CloseStdin();
+            Process.Dispose();
+        }
     }
 }

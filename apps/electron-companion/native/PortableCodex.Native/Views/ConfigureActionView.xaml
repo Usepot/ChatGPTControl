@@ -1,0 +1,105 @@
+<UserControl x:Class="PortableCodex.Native.Views.ConfigureActionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="56,44,56,44" MaxWidth="680" HorizontalAlignment="Center">
+
+            <!-- Hero -->
+            <ui:SymbolIcon Symbol="Link24" FontSize="36" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,16" HorizontalAlignment="Left" />
+            <TextBlock Style="{StaticResource PageHeading}" Text="{Binding StepConfigureLabel}" />
+            <TextBlock Style="{StaticResource PageSubheading}" Margin="0,8,0,20" Text="{Binding IntegrationModeSummary}" />
+
+            <!-- Mode switcher -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,32">
+                <ui:Button Appearance="Secondary" Content="Switch to App Beta" FontSize="12" Command="{Binding SelectIntegrationModeCommand}" CommandParameter="mcp" Margin="0,0,8,0" />
+                <ui:Button Appearance="Primary" Content="Switch to GPT Action" FontSize="12" Command="{Binding SelectIntegrationModeCommand}" CommandParameter="legacy_action" />
+            </StackPanel>
+
+            <!-- ── MCP flow ── -->
+            <StackPanel Visibility="{Binding IsMcpIntegrationSelected, Converter={StaticResource BoolToVis}}">
+                <Border Background="{DynamicResource WarningSubtleBg}" CornerRadius="6" Padding="14,10" Margin="0,0,0,24">
+                    <TextBlock Text="Beta integration — use Custom GPT Action unless you need Pro model access." FontSize="12" Foreground="{DynamicResource WarningSubtleFg}" TextWrapping="Wrap" />
+                </Border>
+
+                <!-- Step 1 -->
+                <DockPanel Margin="0,0,0,8">
+                    <Grid DockPanel.Dock="Left" Style="{StaticResource StepCircle}">
+                        <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="1" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" VerticalAlignment="Center" TextWrapping="Wrap">
+                        <Run>Paste this</Run> <Run FontWeight="SemiBold">MCP endpoint</Run><Run>:</Run>
+                    </TextBlock>
+                </DockPanel>
+                <TextBlock FontSize="11" Foreground="{DynamicResource TertiaryFg}" Margin="38,0,0,8" TextWrapping="Wrap" Text="{Binding McpEndpointSummary}" />
+                <Grid Margin="0,0,0,24">
+                    <TextBox Style="{StaticResource CodeBox}" Text="{Binding McpEndpointUrl, Mode=OneWay}" />
+                    <ui:Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" Appearance="Transparent" FontSize="11" Content="{Binding McpEndpointCopiedLabel}" Command="{Binding CopyMcpEndpointCommand}" />
+                </Grid>
+
+                <!-- Step 2 -->
+                <DockPanel Margin="0,0,0,8">
+                    <Grid DockPanel.Dock="Left" Style="{StaticResource StepCircle}">
+                        <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="2" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" VerticalAlignment="Center" TextWrapping="Wrap">
+                        <Run>Set auth to</Run> <Run FontWeight="SemiBold">Bearer token</Run><Run>:</Run>
+                    </TextBlock>
+                </DockPanel>
+                <Grid Margin="0,0,0,24">
+                    <TextBox Style="{StaticResource CodeBox}" Text="{Binding GptApiToken, Mode=OneWay}" />
+                    <ui:Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" Appearance="Transparent" FontSize="11" Content="{Binding TokenCopiedLabel}" Command="{Binding CopyAuthTokenCommand}" />
+                </Grid>
+
+                <!-- Step 3 -->
+                <DockPanel>
+                    <Grid DockPanel.Dock="Left" Style="{StaticResource StepCircle}">
+                        <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="3" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" VerticalAlignment="Center" TextWrapping="Wrap">Save the connector, then continue to add workspaces</TextBlock>
+                </DockPanel>
+            </StackPanel>
+
+            <!-- ── Legacy flow ── -->
+            <StackPanel Visibility="{Binding IsLegacyIntegrationSelected, Converter={StaticResource BoolToVis}}">
+                <!-- Step 1 -->
+                <DockPanel Margin="0,0,0,8">
+                    <Grid DockPanel.Dock="Left" Style="{StaticResource StepCircle}">
+                        <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="1" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" VerticalAlignment="Center" TextWrapping="Wrap">
+                        <Run>Under</Run> <Run FontWeight="SemiBold">Actions → Create new action</Run><Run>, paste this schema:</Run>
+                    </TextBlock>
+                </DockPanel>
+                <TextBlock FontSize="11" Foreground="{DynamicResource TertiaryFg}" Margin="38,0,0,8" TextWrapping="Wrap" Text="{Binding ActionSchemaSummary}" />
+                <Grid Margin="0,0,0,24">
+                    <TextBox Style="{StaticResource CodeBox}" MaxHeight="160" VerticalScrollBarVisibility="Auto" Text="{Binding MinifiedOpenApiSchema, Mode=OneWay}" />
+                    <ui:Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" Appearance="Transparent" FontSize="11" Content="{Binding SchemaCopiedLabel}" Command="{Binding CopySchemaCommand}" />
+                </Grid>
+
+                <!-- Step 2 -->
+                <DockPanel Margin="0,0,0,8">
+                    <Grid DockPanel.Dock="Left" Style="{StaticResource StepCircle}">
+                        <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="2" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" VerticalAlignment="Center" TextWrapping="Wrap">
+                        <Run>Choose</Run> <Run FontWeight="SemiBold">API Key → Bearer</Run><Run>, paste this token:</Run>
+                    </TextBlock>
+                </DockPanel>
+                <Grid Margin="0,0,0,24">
+                    <TextBox Style="{StaticResource CodeBox}" Text="{Binding GptApiToken, Mode=OneWay}" />
+                    <ui:Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" Appearance="Transparent" FontSize="11" Content="{Binding TokenCopiedLabel}" Command="{Binding CopyAuthTokenCommand}" />
+                </Grid>
+
+                <!-- Step 3 -->
+                <DockPanel>
+                    <Grid DockPanel.Dock="Left" Style="{StaticResource StepCircle}">
+                        <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="3" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" VerticalAlignment="Center" TextWrapping="Wrap">Save the GPT, then continue to add workspaces</TextBlock>
+                </DockPanel>
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

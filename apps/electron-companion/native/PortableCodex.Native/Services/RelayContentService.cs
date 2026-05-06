@@ -11,15 +11,21 @@ namespace PortableCodex.Native.Services;
 
 /// <summary>
 /// Bundled GPT setup content: OpenAPI comes from <c>docs/openapi.actions.min.json</c> (kept in sync via
-/// <c>npm run docs:openapi</c>); instructions from <c>docs/custom-gpt-instructions.md</c>. Both are embedded at build time.
+/// <c>npm run docs:openapi</c>); instructions from <c>docs/custom-gpt-instructions.md</c>. Source files are used
+/// when running from a repo checkout; embedded resources are the fallback for published builds.
 /// </summary>
 public sealed class RelayContentService
 {
     private const string OpenApiBundledResource = "PortableCodex_BundledOpenApi.json";
+    private const string OpenApiYamlBundledResource = "PortableCodex_BundledOpenApi.yaml";
     private const string GptInstructionsBundledResource = "PortableCodex_GptInstructions.md";
+    private const string OpenApiPlaceholder = "https://YOUR-RELAY-URL.example.com";
 
-    private static readonly Lazy<string> OpenApiTemplateJson = new(ReadBundledOpenApiTemplate);
-    private static readonly Lazy<string> GptInstructionsText = new(ReadBundledGptInstructions);
+    private static readonly string[] RepoSearchRoots =
+    [
+        AppContext.BaseDirectory,
+        Directory.GetCurrentDirectory(),
+    ];
 
     private static readonly JsonSerializerOptions OpenApiMinify = new()
     {
@@ -27,7 +33,7 @@ public sealed class RelayContentService
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public static string GptInstructions => GptInstructionsText.Value;
+    public static string GptInstructions => ReadGptInstructions();
 
     public string GetRelayEnvBlock(CompanionSettings settings)
     {
@@ -43,13 +49,18 @@ public sealed class RelayContentService
     /// </summary>
     public string GetOpenApiJson(string? relayUrl)
     {
-        var root = JsonNode.Parse(OpenApiTemplateJson.Value)!.AsObject();
+        var root = JsonNode.Parse(ReadOpenApiTemplateJson())!.AsObject();
         if (root["servers"] is JsonArray servers && servers.Count > 0 && servers[0] is JsonObject firstServer)
         {
             firstServer["url"] = NormalizeRelayUrl(relayUrl);
         }
 
         return root.ToJsonString(OpenApiMinify);
+    }
+
+    public string GetOpenApiYaml(string? relayUrl)
+    {
+        return ReadOpenApiTemplateYaml().Replace(OpenApiPlaceholder, NormalizeRelayUrl(relayUrl), StringComparison.Ordinal);
     }
 
     public string GetOpenApiPreview(string? relayUrl)
@@ -67,18 +78,49 @@ public sealed class RelayContentService
         return value.TrimEnd('/');
     }
 
-    private static string ReadBundledOpenApiTemplate()
+    private static string ReadOpenApiTemplateJson()
     {
-        using var stream = OpenEmbedded(OpenApiBundledResource);
+        return ReadRepoFile(Path.Combine("docs", "openapi.actions.min.json")) ??
+               ReadBundledText(OpenApiBundledResource);
+    }
+
+    private static string ReadOpenApiTemplateYaml()
+    {
+        return ReadRepoFile(Path.Combine("docs", "openapi.actions.yaml")) ??
+               ReadBundledText(OpenApiYamlBundledResource);
+    }
+
+    private static string ReadGptInstructions()
+    {
+        return ReadRepoFile(Path.Combine("docs", "custom-gpt-instructions.md")) ??
+               ReadBundledText(GptInstructionsBundledResource);
+    }
+
+    private static string ReadBundledText(string logicalName)
+    {
+        using var stream = OpenEmbedded(logicalName);
         using var reader = new StreamReader(stream, Encoding.UTF8);
         return reader.ReadToEnd();
     }
 
-    private static string ReadBundledGptInstructions()
+    private static string? ReadRepoFile(string relativePath)
     {
-        using var stream = OpenEmbedded(GptInstructionsBundledResource);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
-        return reader.ReadToEnd();
+        foreach (var searchRoot in RepoSearchRoots.Where(path => !string.IsNullOrWhiteSpace(path)))
+        {
+            var dir = new DirectoryInfo(Path.GetFullPath(searchRoot));
+            while (dir is not null)
+            {
+                var candidate = Path.Combine(dir.FullName, relativePath);
+                if (File.Exists(candidate))
+                {
+                    return File.ReadAllText(candidate, Encoding.UTF8);
+                }
+
+                dir = dir.Parent;
+            }
+        }
+
+        return null;
     }
 
     private static Stream OpenEmbedded(string logicalName)

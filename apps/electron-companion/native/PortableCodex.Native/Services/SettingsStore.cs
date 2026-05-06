@@ -43,6 +43,9 @@ public sealed class SettingsStore
             }
 
             var loadedSettings = parsed.Settings ?? new CompanionSettings();
+            var integrationMode = string.Equals(loadedSettings.IntegrationMode, "legacy_action", StringComparison.Ordinal)
+                ? "legacy_action"
+                : "mcp";
             return new PersistedState
             {
                 Settings = _credentialService.CreateSuggestedSettings(new CompanionSettings
@@ -55,6 +58,7 @@ public sealed class SettingsStore
                     DeviceToken = loadedSettings.DeviceToken ?? string.Empty,
                     DeviceName = loadedSettings.DeviceName ?? string.Empty,
                     GptApiToken = loadedSettings.GptApiToken ?? string.Empty,
+                    IntegrationMode = integrationMode,
                     TrustedWorkspaces = loadedSettings.TrustedWorkspaces ?? [],
                     CurrentWorkspace = loadedSettings.CurrentWorkspace ?? string.Empty,
                     ImportCodexCliWorkspaces = hasCodexImportSetting && loadedSettings.ImportCodexCliWorkspaces,

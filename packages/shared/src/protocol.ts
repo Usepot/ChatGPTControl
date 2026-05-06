@@ -1,5 +1,6 @@
 export const TOOL_NAMES = [
   "list_trusted_workspaces",
+  "get_gpt_instructions",
   "list_skills",
   "get_skill",
   "list_dir",
@@ -11,6 +12,13 @@ export const TOOL_NAMES = [
   "make_dir",
   "delete_path",
   "run_command",
+  "shell",
+  "exec_command",
+  "shell_command",
+  "write_stdin",
+  "request_permissions",
+  "view_image",
+  "screenshot_desktop",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -28,6 +36,10 @@ export interface ToolRequestBase extends ToolRequestEnvelope {
 
 export interface ListTrustedWorkspacesRequest extends ToolRequestEnvelope {
   tool: "list_trusted_workspaces";
+}
+
+export interface GetGptInstructionsRequest extends ToolRequestEnvelope {
+  tool: "get_gpt_instructions";
 }
 
 export interface ListSkillsRequest extends ToolRequestEnvelope {
@@ -104,13 +116,68 @@ export interface DeletePathRequest extends ToolRequestBase {
 export interface RunCommandRequest extends ToolRequestBase {
   tool: "run_command";
   command: string;
+  workdir?: string;
   workingDirectory?: string;
   timeoutMs?: number;
   maxOutputBytes?: number;
+  stdin?: string;
+}
+
+export interface ShellRequest extends ToolRequestBase {
+  tool: "shell" | "exec_command" | "shell_command";
+  command?: string | string[];
+  cmd?: string;
+  commandLine?: string;
+  workdir?: string;
+  workingDirectory?: string;
+  working_directory?: string;
+  timeoutMs?: number;
+  timeout_ms?: number;
+  maxOutputBytes?: number;
+  max_output_bytes?: number;
+  yield_time_ms?: number;
+  max_output_tokens?: number;
+  tty?: boolean;
+  shell?: string;
+  login?: boolean;
+  stdin?: string;
+  input?: string;
+}
+
+export interface WriteStdinRequest extends ToolRequestEnvelope {
+  tool: "write_stdin";
+  processId?: string;
+  sessionId?: string;
+  session_id?: number;
+  chars?: string;
+  yield_time_ms?: number;
+  max_output_tokens?: number;
+  stdin?: string;
+  input?: string;
+}
+
+export interface RequestPermissionsRequest extends ToolRequestEnvelope {
+  tool: "request_permissions";
+  permissions?: string[];
+  reason?: string;
+}
+
+export interface ViewImageRequest extends ToolRequestBase {
+  tool: "view_image";
+  path: string;
+  maxBytes?: number;
+}
+
+export interface ScreenshotDesktopRequest extends ToolRequestBase {
+  tool: "screenshot_desktop";
+  path?: string;
+  screen?: "primary";
+  maxBytes?: number;
 }
 
 export type ToolRequest =
   | ListTrustedWorkspacesRequest
+  | GetGptInstructionsRequest
   | ListSkillsRequest
   | GetSkillRequest
   | ListDirRequest
@@ -121,7 +188,12 @@ export type ToolRequest =
   | StatPathRequest
   | MakeDirRequest
   | DeletePathRequest
-  | RunCommandRequest;
+  | RunCommandRequest
+  | ShellRequest
+  | WriteStdinRequest
+  | RequestPermissionsRequest
+  | ViewImageRequest
+  | ScreenshotDesktopRequest;
 
 export interface DirectoryEntry {
   name: string;
@@ -204,6 +276,7 @@ export type DeviceToRelayMessage =
 
 export const TOOL_ROUTE_MAP: Record<ToolName, string> = {
   list_trusted_workspaces: "/tools/list-trusted-workspaces",
+  get_gpt_instructions: "/tools/get-gpt-instructions",
   list_skills: "/tools/list-skills",
   get_skill: "/tools/get-skill",
   list_dir: "/tools/list-dir",
@@ -215,6 +288,13 @@ export const TOOL_ROUTE_MAP: Record<ToolName, string> = {
   make_dir: "/tools/make-dir",
   delete_path: "/tools/delete-path",
   run_command: "/tools/run-command",
+  shell: "/tools/shell",
+  exec_command: "/tools/exec-command",
+  shell_command: "/tools/shell-command",
+  write_stdin: "/tools/write-stdin",
+  request_permissions: "/tools/request-permissions",
+  view_image: "/tools/view-image",
+  screenshot_desktop: "/tools/screenshot-desktop",
 };
 
 export interface PairingConfig {

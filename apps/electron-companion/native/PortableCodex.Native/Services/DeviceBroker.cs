@@ -206,7 +206,7 @@ public sealed class DeviceBroker
                 ["type"] = "tool:request",
                 ["request"] = JsonSerializer.SerializeToNode(toolRequest, JsonDefaults.Transport),
             };
-            await SendJsonAsync(device.Socket, payload, cancellationToken);
+            await SendJsonAsync(device, payload, cancellationToken);
         }
         catch
         {
@@ -351,9 +351,28 @@ public sealed class DeviceBroker
             "stat_path" => $"path={request.Path ?? "."}",
             "make_dir" => $"path={request.Path}",
             "delete_path" => $"path={request.Path}, recursive={request.Recursive == true}",
-            "run_command" => $"command={request.Command}, cwd={request.WorkingDirectory ?? "."}",
+            "run_command" or "shell" or "exec_command" or "shell_command" => $"command={SummarizeCommand(request)}, cwd={request.WorkingDirectory ?? request.WorkingDirectorySnake ?? request.Workdir ?? "."}",
+            "write_stdin" => $"process={request.ProcessId ?? request.SessionId ?? request.SessionIdSnake?.ToString() ?? "unknown"}",
+            "request_permissions" => $"permissions={string.Join(",", request.Permissions ?? [])}",
+            "view_image" => $"path={request.Path}",
+            "screenshot_desktop" => $"path={request.Path ?? "desktop_screenshot.png"}, screen={request.Screen ?? "primary"}",
             _ => "unknown",
         };
+    }
+
+    private static string SummarizeCommand(ToolRequest request)
+    {
+        if (request.Command is JsonArray commandArray)
+        {
+            return string.Join(" ", commandArray.Select(item => item?.GetValue<string>() ?? string.Empty));
+        }
+
+        if (request.Command is JsonValue commandValue && commandValue.TryGetValue<string>(out var commandString))
+        {
+            return commandString;
+        }
+
+        return request.Cmd ?? request.CommandLine ?? string.Empty;
     }
 
     private static ToolAuditEntry CloneAuditEntry(ToolAuditEntry source)
@@ -371,16 +390,29 @@ public sealed class DeviceBroker
         };
     }
 
-    private static async Task SendJsonAsync(WebSocket socket, JsonObject payload, CancellationToken cancellationToken)
+    private static async Task SendJsonAsync(ConnectedDevice device, JsonObject payload, CancellationToken cancellationToken)
     {
-        if (socket.State != WebSocketState.Open)
+        if (device.Socket.State != WebSocketState.Open)
         {
             throw new InvalidOperationException("WebSocket is not open");
         }
 
         var json = payload.ToJsonString(JsonDefaults.Transport);
         var bytes = Encoding.UTF8.GetBytes(json);
-        await socket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+        await device.SendGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (device.Socket.State != WebSocketState.Open)
+            {
+                throw new InvalidOperationException("WebSocket is not open");
+            }
+
+            await device.Socket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+        }
+        finally
+        {
+            device.SendGate.Release();
+        }
     }
 
     private static async Task<string?> ReceiveTextAsync(WebSocket socket, CancellationToken cancellationToken)
@@ -433,6 +465,8 @@ public sealed class DeviceBroker
         public string DeviceName { get; }
 
         public WebSocket Socket { get; }
+
+        public SemaphoreSlim SendGate { get; } = new(1, 1);
 
         public string ConnectedAt { get; }
     }

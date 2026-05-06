@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -24,12 +24,15 @@
     <EmbeddedResource Include="..\..\..\..\docs\openapi.actions.min.json">
       <LogicalName>PortableCodex_BundledOpenApi.json</LogicalName>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\..\..\..\docs\openapi.actions.yaml">
+      <LogicalName>PortableCodex_BundledOpenApi.yaml</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="..\..\..\..\docs\custom-gpt-instructions.md">
       <LogicalName>PortableCodex_GptInstructions.md</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="MaterialDesignThemes" Version="5.3.2" />
+    <PackageReference Include="WPF-UI" Version="4.2.1" />
   </ItemGroup>
 
 </Project>

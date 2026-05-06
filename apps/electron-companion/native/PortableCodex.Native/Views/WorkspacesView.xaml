@@ -1,0 +1,94 @@
+<UserControl x:Class="PortableCodex.Native.Views.WorkspacesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="56,44,56,44" MaxWidth="620" HorizontalAlignment="Center">
+
+            <!-- Hero -->
+            <ui:SymbolIcon Symbol="Folder24" FontSize="36" Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,16" HorizontalAlignment="Left" />
+            <TextBlock Style="{StaticResource PageHeading}" Text="Workspaces" />
+            <TextBlock Style="{StaticResource PageSubheading}" Margin="0,8,0,40"
+                       Text="Add the folders ChatGPT can access. Only these directories will be readable and writable." />
+
+            <!-- ── Folders ── -->
+            <DockPanel Margin="0,0,0,14">
+                <ui:Button DockPanel.Dock="Right" Appearance="Primary" FontSize="12" Content="+ Add folder" Command="{Binding AddWorkspaceCommand}" />
+                <TextBlock Style="{StaticResource SectionTitle}" Text="Folders" VerticalAlignment="Center" />
+            </DockPanel>
+
+            <CheckBox Margin="0,0,0,14" FontSize="13" Foreground="{DynamicResource SecondaryFg}" IsChecked="{Binding ImportCodexCliWorkspaces}" Content="Import workspaces from Codex CLI" />
+
+            <StackPanel Visibility="{Binding HasWorkspaces, Converter={StaticResource BoolToVis}}" Margin="0,0,0,4">
+                <TextBlock FontSize="12" Foreground="{DynamicResource MutedFg}" Margin="0,0,0,6" Text="Active workspace" />
+                <ComboBox FontSize="13" ItemsSource="{Binding CurrentWorkspaceChoices}" SelectedItem="{Binding CurrentWorkspace, Mode=TwoWay}" />
+                <ui:Button Appearance="Transparent" FontSize="12" HorizontalAlignment="Left" Margin="0,8,0,0"
+                           Content="{Binding ViewAllWorkspacesButtonText}" Command="{Binding ViewAllWorkspacesCommand}" />
+            </StackPanel>
+
+            <TextBlock FontSize="13" Foreground="{DynamicResource TertiaryFg}" Margin="0,0,0,0"
+                       Visibility="{Binding HasWorkspaces, Converter={StaticResource InverseBoolToVis}}"
+                       Text="No workspaces added yet — you can always add them later." />
+
+            <Border Style="{StaticResource Divider}" Margin="0,20" />
+
+            <!-- ── Skills ── -->
+            <DockPanel Margin="0,0,0,14">
+                <ui:Button DockPanel.Dock="Right" Appearance="Secondary" FontSize="12" Content="+ Add skill" Command="{Binding AddSkillCommand}" />
+                <TextBlock Style="{StaticResource SectionTitle}" Text="Skills" VerticalAlignment="Center" />
+            </DockPanel>
+
+            <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" Margin="0,0,0,14" TextWrapping="Wrap" Text="{Binding SkillSummaryText}" />
+            <CheckBox Margin="0,0,0,14" FontSize="13" Foreground="{DynamicResource SecondaryFg}" IsChecked="{Binding ImportCodexCliSkills}" Content="Sync skills from Codex CLI" />
+
+            <!-- Skills list -->
+            <ItemsControl ItemsSource="{Binding Skills}" Visibility="{Binding HasSkills, Converter={StaticResource BoolToVis}}" Margin="0,4,0,0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid x:Name="SkillChip" Margin="0,0,8,8">
+                            <Button Style="{StaticResource SkillChipButton}"
+                                    FontSize="12"
+                                    Content="{Binding Activation}"
+                                    Command="{Binding DataContext.ViewSkillCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}"
+                                    ToolTip="View SKILL.md" />
+                            <Button HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,4,0"
+                                    ToolTip="Remove skill"
+                                    Command="{Binding DataContext.RemoveSkillCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding Path}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource SkillChipRemoveButton}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsMouseOver, ElementName=SkillChip}" Value="True">
+                                                <Setter Property="Opacity" Value="1" />
+                                                <Setter Property="IsHitTestVisible" Value="True" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Border Style="{StaticResource Divider}" Margin="0,20" />
+
+            <!-- ── Security ── -->
+            <DockPanel Margin="0,0,0,10">
+                <ui:SymbolIcon DockPanel.Dock="Left" Symbol="Shield24" FontSize="18" Foreground="{DynamicResource AccentBrush}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                <TextBlock Style="{StaticResource SectionTitle}" Text="Security" VerticalAlignment="Center" />
+            </DockPanel>
+            <CheckBox FontSize="13" Foreground="{DynamicResource SecondaryFg}" IsChecked="{Binding RequireApprovalForWrites}"
+                      Content="Require approval for writes, patches, deletes, and commands" />
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

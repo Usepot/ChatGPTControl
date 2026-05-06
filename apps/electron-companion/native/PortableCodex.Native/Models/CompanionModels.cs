@@ -20,6 +20,8 @@ public sealed class CompanionSettings
 
     public string GptApiToken { get; set; } = string.Empty;
 
+    public string IntegrationMode { get; set; } = "legacy_action";
+
     public List<string> TrustedWorkspaces { get; set; } = [];
 
     public string CurrentWorkspace { get; set; } = string.Empty;

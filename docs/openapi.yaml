@@ -54,6 +54,17 @@ components:
           description: Optional target device ID. Defaults to the API token's default device.
       additionalProperties: true
 
+    GetGptInstructionsRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+          description: Optional caller-generated request ID. The relay generates one if omitted.
+        deviceId:
+          type: string
+          description: Optional target device ID. Defaults to the API token's default device.
+      additionalProperties: true
+
     ListSkillsRequest:
       type: object
       properties:
@@ -329,6 +340,9 @@ components:
         command:
           type: string
           description: Command line to run from the trusted workspace.
+        workdir:
+          type: string
+          description: Codex-style alias for workingDirectory.
         workingDirectory:
           type: string
           description: Relative working directory inside the workspace. Defaults to .
@@ -343,9 +357,277 @@ components:
           description: Maximum UTF-8 bytes to return for stdout and stderr separately.
           minimum: 1
           default: 200000
+        stdin:
+          type: string
+          description: Optional stdin text to write before closing stdin for this one-shot command.
       required:
         - workspaceRoot
         - command
+      additionalProperties: true
+
+    ShellRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: >-
+            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            The device rejects any path outside configured trusted roots regardless of this request.
+        command:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+          description: >-
+            Command to run. For Codex-style shell calls this may be an argv array, such as
+            ["powershell.exe", "-Command", "Get-ChildItem"]. String aliases cmd and commandLine are also accepted.
+        cmd:
+          type: string
+          description: Codex exec_command shell command string.
+        commandLine:
+          type: string
+          description: Alias for command.
+        workdir:
+          type: string
+          description: Codex-style relative working directory alias.
+        workingDirectory:
+          type: string
+          description: Relative working directory inside the workspace. Defaults to .
+          default: "."
+        working_directory:
+          type: string
+          description: Snake-case alias for workingDirectory.
+        timeoutMs:
+          type: integer
+          description: Command timeout in milliseconds. The companion clamps this to a safe maximum.
+          minimum: 1000
+          default: 60000
+        timeout_ms:
+          type: integer
+          description: Snake-case alias for timeoutMs.
+          minimum: 1000
+        maxOutputBytes:
+          type: integer
+          description: Maximum UTF-8 bytes to return for stdout and stderr separately.
+          minimum: 1
+          default: 200000
+        max_output_bytes:
+          type: integer
+          description: Snake-case alias for maxOutputBytes.
+          minimum: 1
+        yield_time_ms:
+          type: integer
+          description: >-
+            For exec_command sessions, how long to wait for output before returning a session_id.
+          minimum: 0
+        max_output_tokens:
+          type: integer
+          description: Approximate Codex-style output budget. The companion converts this to a byte limit.
+          minimum: 1
+        tty:
+          type: boolean
+          description: Keep stdin open for later write_stdin calls when using exec_command.
+        shell:
+          type: string
+          description: Accepted for Codex compatibility. The companion currently uses its default shell runner.
+        login:
+          type: boolean
+          description: Accepted for Codex compatibility.
+        stdin:
+          type: string
+          description: Optional stdin text to write when starting the command.
+        input:
+          type: string
+          description: Alias for stdin.
+      required:
+        - workspaceRoot
+      additionalProperties: true
+
+    WriteStdinRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        processId:
+          type: string
+          description: Running process identifier from a Codex-style shell session.
+        sessionId:
+          type: string
+          description: Alias for processId used by some harnesses.
+        session_id:
+          type: integer
+          description: Codex-style numeric session identifier returned by exec_command.
+        chars:
+          type: string
+          description: Characters to write to stdin. May be empty to poll for output.
+        yield_time_ms:
+          type: integer
+          description: How long to wait for output before returning.
+          minimum: 0
+        max_output_tokens:
+          type: integer
+          description: Approximate Codex-style output budget. The companion converts this to a byte limit.
+          minimum: 1
+        stdin:
+          type: string
+        input:
+          type: string
+          description: Alias for stdin.
+      additionalProperties: true
+
+    RequestPermissionsRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        reason:
+          type: string
+      additionalProperties: true
+
+    ViewImageRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: >-
+            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            The device rejects any path outside configured trusted roots regardless of this request.
+        path:
+          type: string
+          description: Relative path of a local image file inside the workspace.
+        maxBytes:
+          type: integer
+          description: Maximum image size to return as a data URL. Defaults to 5000000.
+          minimum: 1
+      required:
+        - workspaceRoot
+        - path
+      additionalProperties: true
+
+    ScreenshotDesktopRequest:
+      type: object
+      properties:
+        requestId:
+          type: string
+        deviceId:
+          type: string
+        workspaceRoot:
+          type: string
+          description: >-
+            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            The screenshot is written inside this workspace.
+        path:
+          type: string
+          description: Relative PNG output path inside the workspace. Defaults to desktop_screenshot.png.
+          default: desktop_screenshot.png
+        screen:
+          type: string
+          enum:
+            - primary
+          default: primary
+          description: Screen to capture. Currently only primary is supported.
+        maxBytes:
+          type: integer
+          description: Maximum screenshot size to return inline as image data. Defaults to 5000000.
+          minimum: 1
+      required:
+        - workspaceRoot
+      additionalProperties: true
+
+    ActionImage:
+      type: object
+      description: >-
+        Inline image bytes returned for GPT Actions. MCP clients receive the same payload as native
+        image content. GPT Actions file-return support uses openaiFileResponse, but returned files
+        currently cannot be images or videos, so image tools expose this actionImage object instead.
+      required:
+        - name
+        - mime_type
+        - content
+      properties:
+        name:
+          type: string
+          description: The image file name.
+        mime_type:
+          type: string
+          description: The image MIME type, such as image/png.
+        content:
+          type: string
+          format: byte
+          description: The base64-encoded image bytes.
+        bytes:
+          type: integer
+          description: Original image byte count.
+        note:
+          type: string
+
+    ImageResult:
+      type: object
+      description: Metadata for an image returned by view_image or screenshot_desktop.
+      properties:
+        path:
+          type: string
+        screen:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        mimeType:
+          type: string
+        bytes:
+          type: integer
+        inlineImageReturned:
+          type: boolean
+        actionImageReturned:
+          type: boolean
+        inlineImageTruncated:
+          type: boolean
+      additionalProperties: true
+
+    ImageToolResponse:
+      type: object
+      description: >-
+        Action-friendly image tool response. The top-level actionImage contains the base64 image
+        payload for GPT Actions; result contains metadata without duplicating the large base64 field.
+      required:
+        - requestId
+        - status
+      properties:
+        requestId:
+          type: string
+        status:
+          type: string
+          enum:
+            - ok
+            - denied
+            - error
+            - timeout
+        result:
+          $ref: "#/components/schemas/ImageResult"
+        actionImage:
+          $ref: "#/components/schemas/ActionImage"
+        error:
+          $ref: "#/components/schemas/ToolError"
+        approvalRequired:
+          $ref: "#/components/schemas/ApprovalRequired"
       additionalProperties: true
 
     ToolResponse:
@@ -389,6 +671,25 @@ paths:
       responses:
         "200":
           description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolResponse"
+
+  /tools/get-gpt-instructions:
+    post:
+      x-openai-isConsequential: false
+      operationId: get_gpt_instructions
+      summary: Return the latest Custom GPT instructions from the paired companion.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GetGptInstructionsRequest"
+      responses:
+        "200":
+          description: Tool result with result.instructions containing the current instruction text.
           content:
             application/json:
               schema:
@@ -602,3 +903,136 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ToolResponse"
+
+  /tools/shell:
+    post:
+      x-openai-isConsequential: false
+      operationId: shell
+      summary: Codex-compatible alias for running a shell command in a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShellRequest"
+      responses:
+        "200":
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolResponse"
+
+  /tools/exec-command:
+    post:
+      x-openai-isConsequential: false
+      operationId: exec_command
+      summary: Codex-compatible alias for running a shell command in a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShellRequest"
+      responses:
+        "200":
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolResponse"
+
+  /tools/shell-command:
+    post:
+      x-openai-isConsequential: false
+      operationId: shell_command
+      summary: Codex-compatible alias for running a shell command in a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShellRequest"
+      responses:
+        "200":
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolResponse"
+
+  /tools/write-stdin:
+    post:
+      x-openai-isConsequential: false
+      operationId: write_stdin
+      summary: Write characters to an existing exec_command session and return recent output.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WriteStdinRequest"
+      responses:
+        "200":
+          description: Tool result with Codex-style output fields such as session_id, exit_code, wall_time_seconds, and output.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolResponse"
+
+  /tools/request-permissions:
+    post:
+      x-openai-isConsequential: false
+      operationId: request_permissions
+      summary: Codex compatibility shim for sandbox permission requests.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestPermissionsRequest"
+      responses:
+        "200":
+          description: Tool result. Portable Codex uses trusted workspaces and companion approvals instead.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolResponse"
+
+  /tools/view-image:
+    post:
+      x-openai-isConsequential: false
+      operationId: view_image
+      summary: Load and return a local image file as a base64 data URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ViewImageRequest"
+      responses:
+        "200":
+          description: Tool result with actionImage containing base64 image bytes for GPT Actions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageToolResponse"
+  /tools/screenshot-desktop:
+    post:
+      x-openai-isConsequential: false
+      operationId: screenshot_desktop
+      summary: Capture the primary desktop screen and save it as a PNG inside a trusted workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScreenshotDesktopRequest"
+      responses:
+        "200":
+          description: Tool result with actionImage containing base64 image bytes for GPT Actions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageToolResponse"
+
