@@ -173,7 +173,7 @@ public static class McpProtocolService
                 ["name"] = "portable-codex",
                 ["version"] = "0.1.0",
             },
-            ["instructions"] = "Portable Codex exposes trusted local workspaces through MCP tools. Call list_trusted_workspaces before filesystem tools and use only returned workspaceRoot values.",
+            ["instructions"] = "Portable Codex exposes trusted local workspaces through MCP tools. When workspaceRoot is omitted, the paired companion uses its selected current workspace; pass workspaceRoot only to target another trusted root.",
         };
     }
 
@@ -197,15 +197,6 @@ public static class McpProtocolService
         var arguments = parametersObject["arguments"] as JsonObject ?? new JsonObject();
         var requestId = GetString(arguments, "requestId") ?? Guid.NewGuid().ToString();
         var deviceId = GetString(arguments, "deviceId") ?? principal.DefaultDeviceId;
-
-        if (ToolRequiresWorkspaceRoot(tool))
-        {
-            var workspaceRoot = GetString(arguments, "workspaceRoot");
-            if (string.IsNullOrWhiteSpace(workspaceRoot))
-            {
-                throw new McpMethodException(-32602, "workspaceRoot is required");
-            }
-        }
 
         var request = arguments.Deserialize<ToolRequest>(JsonDefaults.Transport) ?? new ToolRequest();
         request.Tool = tool;

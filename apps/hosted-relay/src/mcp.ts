@@ -182,7 +182,7 @@ function createInitializeResult(params: unknown): JsonObject {
       version: "0.1.0",
     },
     instructions:
-      "Portable Codex exposes trusted local workspaces through MCP tools. Call list_trusted_workspaces before filesystem tools and use only returned workspaceRoot values.",
+      "Portable Codex exposes trusted local workspaces through MCP tools. When workspaceRoot is omitted, the paired companion uses its selected current workspace; pass workspaceRoot only to target another trusted root.",
   };
 }
 
@@ -200,19 +200,15 @@ async function callTool(params: unknown, context: McpRequestContext): Promise<Js
   const requestId = typeof args.requestId === "string" ? args.requestId : createRequestId();
   const deviceId = typeof args.deviceId === "string" ? args.deviceId : context.principal?.defaultDeviceId;
 
-  if (toolRequiresWorkspaceRoot(tool)) {
-    const workspaceRoot = args.workspaceRoot;
-    if (typeof workspaceRoot !== "string" || workspaceRoot.trim().length === 0) {
-      throw new McpMethodError(-32602, "workspaceRoot is required");
-    }
-  }
-
   const request = {
     ...args,
     requestId,
     deviceId,
     tool,
   } as ToolRequest;
+  if (!toolRequiresWorkspaceRoot(tool)) {
+    delete (request as { workspaceRoot?: string }).workspaceRoot;
+  }
 
   const response = await context.dispatch(request);
   const structuredContent = toJsonObject({
@@ -242,7 +238,7 @@ function buildMcpToolDescriptors(publicBaseUrl?: string): JsonObject[] {
   const schemas = openApi.components?.schemas ?? {};
 
   return (Object.entries(TOOL_ROUTE_MAP) as Array<[ToolName, string]>).map(([tool, route]) => {
-    const operation = openApi.paths?.[`/${route}`]?.post ?? {};
+    const operation = openApi.paths?.[route]?.post ?? {};
     const inputSchema = getOperationInputSchema(operation, schemas);
     const title = toTitleCase(tool);
 

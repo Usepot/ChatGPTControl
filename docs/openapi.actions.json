@@ -133,7 +133,7 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The device rejects any path outside configured trusted roots regardless of this request."
           },
           "path": {
             "type": "string",
@@ -141,9 +141,6 @@
             "default": "."
           }
         },
-        "required": [
-          "workspaceRoot"
-        ],
         "additionalProperties": true
       },
       "ReadFileRequest": {
@@ -157,7 +154,7 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The device rejects any path outside configured trusted roots regardless of this request."
           },
           "path": {
             "type": "string",
@@ -177,7 +174,6 @@
           }
         },
         "required": [
-          "workspaceRoot",
           "path"
         ],
         "additionalProperties": true
@@ -193,7 +189,7 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The device rejects any path outside configured trusted roots regardless of this request."
           },
           "path": {
             "type": "string"
@@ -207,7 +203,6 @@
           }
         },
         "required": [
-          "workspaceRoot",
           "path",
           "content"
         ],
@@ -250,7 +245,7 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The device rejects any path outside configured trusted roots regardless of this request."
           },
           "patch": {
             "type": "string",
@@ -269,9 +264,6 @@
             }
           }
         },
-        "required": [
-          "workspaceRoot"
-        ],
         "additionalProperties": true
       },
       "SearchFilesRequest": {
@@ -285,7 +277,7 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The device rejects any path outside configured trusted roots regardless of this request."
           },
           "path": {
             "type": "string",
@@ -324,7 +316,6 @@
           }
         },
         "required": [
-          "workspaceRoot",
           "query"
         ],
         "additionalProperties": true
@@ -340,16 +331,13 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The device rejects any path outside configured trusted roots regardless of this request."
           },
           "path": {
             "type": "string",
             "default": "."
           }
         },
-        "required": [
-          "workspaceRoot"
-        ],
         "additionalProperties": true
       },
       "MakeDirRequest": {
@@ -363,14 +351,13 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The device rejects any path outside configured trusted roots regardless of this request."
           },
           "path": {
             "type": "string"
           }
         },
         "required": [
-          "workspaceRoot",
           "path"
         ],
         "additionalProperties": true
@@ -386,7 +373,7 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The device rejects any path outside configured trusted roots regardless of this request."
           },
           "path": {
             "type": "string"
@@ -397,7 +384,6 @@
           }
         },
         "required": [
-          "workspaceRoot",
           "path"
         ],
         "additionalProperties": true
@@ -413,7 +399,7 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The device rejects any path outside configured trusted roots regardless of this request."
           },
           "command": {
             "type": "string",
@@ -421,7 +407,7 @@
           },
           "workdir": {
             "type": "string",
-            "description": "Codex-style alias for workingDirectory."
+            "description": "Codex-style working directory. Takes priority over workingDirectory."
           },
           "workingDirectory": {
             "type": "string",
@@ -446,7 +432,6 @@
           }
         },
         "required": [
-          "workspaceRoot",
           "command"
         ],
         "additionalProperties": true
@@ -462,7 +447,7 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The device rejects any path outside configured trusted roots regardless of this request."
           },
           "command": {
             "oneOf": [
@@ -488,7 +473,7 @@
           },
           "workdir": {
             "type": "string",
-            "description": "Codex-style relative working directory alias."
+            "description": "Codex-style working directory. Takes priority over workingDirectory aliases."
           },
           "workingDirectory": {
             "type": "string",
@@ -552,9 +537,6 @@
             "description": "Alias for stdin."
           }
         },
-        "required": [
-          "workspaceRoot"
-        ],
         "additionalProperties": true
       },
       "WriteStdinRequest": {
@@ -634,7 +616,7 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The device rejects any path outside configured trusted roots regardless of this request."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The device rejects any path outside configured trusted roots regardless of this request."
           },
           "path": {
             "type": "string",
@@ -647,7 +629,6 @@
           }
         },
         "required": [
-          "workspaceRoot",
           "path"
         ],
         "additionalProperties": true
@@ -663,7 +644,7 @@
           },
           "workspaceRoot": {
             "type": "string",
-            "description": "Absolute path of a workspace the user has already trusted in the Portable Codex companion. The screenshot is written inside this workspace."
+            "description": "Optional absolute path of a workspace the user has already trusted in the Portable Codex companion. If omitted, the companion uses its selected current workspace. The screenshot is written inside the resolved trusted workspace."
           },
           "path": {
             "type": "string",
@@ -684,9 +665,6 @@
             "minimum": 1
           }
         },
-        "required": [
-          "workspaceRoot"
-        ],
         "additionalProperties": true
       },
       "ActionImage": {

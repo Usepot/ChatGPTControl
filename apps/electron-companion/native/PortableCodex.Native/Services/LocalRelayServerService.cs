@@ -69,6 +69,7 @@ public sealed class LocalRelayServerService
             var app = builder.Build();
             app.UseWebSockets();
             var broker = new DeviceBroker(config.RequestTimeoutMs, config.DeviceTokens, _onRelayTerminalResult);
+            Func<ToolRequest, CancellationToken, Task<ToolResponse>> dispatchToolAsync = broker.DispatchAsync;
 
             app.Map(
                 "/ws/device",
@@ -140,7 +141,7 @@ public sealed class LocalRelayServerService
                         bodyResult.Body,
                         principal,
                         _relayContentService.GetOpenApiJson(GetPublicBaseUrl(context.Request)),
-                        (request, token) => broker.DispatchAsync(request, token),
+                        dispatchToolAsync,
                         context.RequestAborted);
 
                     context.Response.StatusCode = result.StatusCode;
@@ -194,41 +195,13 @@ public sealed class LocalRelayServerService
                         var requestId = body["requestId"]?.GetValue<string>() ?? Guid.NewGuid().ToString();
                         var deviceId = body["deviceId"]?.GetValue<string>() ?? principal.DefaultDeviceId;
 
-                        ToolRequest request;
+                        var request = body.Deserialize<ToolRequest>(JsonDefaults.Transport) ?? new ToolRequest();
+                        request.Tool = tool;
+                        request.RequestId = requestId;
+                        request.DeviceId = deviceId;
                         if (!ToolRequiresWorkspaceRoot(tool))
                         {
-                            request = body.Deserialize<ToolRequest>(JsonDefaults.Transport) ?? new ToolRequest();
-                            request.Tool = tool;
-                            request.RequestId = requestId;
-                            request.DeviceId = deviceId;
                             request.WorkspaceRoot = null;
-                        }
-                        else
-                        {
-                            var workspaceRoot = body["workspaceRoot"]?.GetValue<string>();
-                            if (string.IsNullOrWhiteSpace(workspaceRoot))
-                            {
-                                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                                await context.Response.WriteAsJsonAsync(
-                                    new ToolResponse
-                                    {
-                                        RequestId = requestId,
-                                        Status = "error",
-                                        Error = new ToolError
-                                        {
-                                            Code = "WORKSPACE_ROOT_REQUIRED",
-                                            Message = "workspaceRoot is required",
-                                        },
-                                    },
-                                    JsonDefaults.Transport);
-                                return;
-                            }
-
-                            request = body.Deserialize<ToolRequest>(JsonDefaults.Transport) ?? new ToolRequest();
-                            request.Tool = tool;
-                            request.RequestId = requestId;
-                            request.DeviceId = deviceId;
-                            request.WorkspaceRoot = workspaceRoot;
                         }
 
                         var response = await broker.DispatchAsync(request, context.RequestAborted);

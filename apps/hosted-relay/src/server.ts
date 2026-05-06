@@ -68,46 +68,14 @@ export async function startRelayServer(config: RelayConfig): Promise<RelayServer
       const body = (req.body ?? {}) as Partial<ToolRequest>;
       const requestId = body.requestId ?? createRequestId();
       const deviceId = body.deviceId ?? req.principal?.defaultDeviceId;
-      const request =
-        !toolRequiresWorkspaceRoot(tool)
-          ? ({
-              ...body,
-              requestId,
-              deviceId,
-              tool,
-            } as ToolRequest)
-          : (() => {
-              const workspaceRoot = "workspaceRoot" in body ? body.workspaceRoot : undefined;
-              if (!workspaceRoot || typeof workspaceRoot !== "string") {
-                relayLog("request", "validation failed", {
-                  requestId,
-                  tool,
-                  route,
-                  code: "WORKSPACE_ROOT_REQUIRED",
-                  ip: req.socket.remoteAddress ?? "unknown",
-                });
-                res.status(400).json({
-                  requestId,
-                  status: "error",
-                  error: {
-                    code: "WORKSPACE_ROOT_REQUIRED",
-                    message: "workspaceRoot is required",
-                  },
-                });
-                return null;
-              }
-
-              return {
-                ...body,
-                requestId,
-                deviceId,
-                workspaceRoot,
-                tool,
-              } as ToolRequest;
-            })();
-
-      if (!request) {
-        return;
+      const request = {
+        ...body,
+        requestId,
+        deviceId,
+        tool,
+      } as ToolRequest;
+      if (!toolRequiresWorkspaceRoot(tool)) {
+        delete (request as { workspaceRoot?: string }).workspaceRoot;
       }
 
       const response = await broker.dispatch(request);

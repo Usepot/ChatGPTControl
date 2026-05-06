@@ -46,6 +46,19 @@
                         <ui:Button Appearance="Transparent" FontSize="10" HorizontalAlignment="Left" Margin="13,2,0,0" Padding="4,2" Content="{Binding TunnelCopiedLabel}" Command="{Binding CopyTunnelUrlCommand}" />
                     </StackPanel>
 
+                    <!-- Funnel recovery -->
+                    <StackPanel Margin="0,0,0,12" Visibility="{Binding ShowTunnelRecovery, Converter={StaticResource BoolToVis}}">
+                        <DockPanel>
+                            <Border DockPanel.Dock="Left" Width="7" Height="7" CornerRadius="4" Margin="0,0,10,0" VerticalAlignment="Center"
+                                    Background="{Binding TunnelState, Converter={StaticResource StatusDot}}" />
+                            <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" Text="Funnel" />
+                        </DockPanel>
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TertiaryFg}" Text="{Binding TunnelMessage}" Margin="17,3,0,0" TextWrapping="Wrap" />
+                        <ui:Button Appearance="Primary" FontSize="11" HorizontalAlignment="Left" Margin="17,8,0,0" Padding="8,4"
+                                   Content="{Binding TunnelReconnectButtonText}"
+                                   Command="{Binding ApplyTunnelSettingsCommand}" />
+                    </StackPanel>
+
                     <!-- Device ID -->
                     <DockPanel Margin="0,0,0,0">
                         <Border DockPanel.Dock="Left" Width="7" Height="7" CornerRadius="4" Margin="0,0,10,0" VerticalAlignment="Center"

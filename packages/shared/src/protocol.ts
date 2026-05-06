@@ -31,7 +31,7 @@ export interface ToolRequestEnvelope {
 }
 
 export interface ToolRequestBase extends ToolRequestEnvelope {
-  workspaceRoot: string;
+  workspaceRoot?: string;
 }
 
 export interface ListTrustedWorkspacesRequest extends ToolRequestEnvelope {

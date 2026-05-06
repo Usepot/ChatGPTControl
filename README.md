@@ -99,7 +99,7 @@ npm run dev:relay
 4. Configure authentication as bearer token auth and paste the companion-generated ChatGPT bearer token.
 5. Save the connector. The MCP server advertises the existing Portable Codex tools through `tools/list` and forwards `tools/call` requests through the same trusted companion/device broker as the REST Action API.
 6. In the companion app, add one or more trusted workspaces.
-7. Have ChatGPT call `list_trusted_workspaces` before using file tools so it can pick a valid `workspaceRoot`.
+7. Have ChatGPT call `list_trusted_workspaces` before using file tools. After the companion has a current workspace selected, Codex-style calls may omit `workspaceRoot`; pass it only to target another trusted root.
 
 The MCP endpoint is authenticated and uses the same local trust boundaries as the legacy Action API: the relay never touches files, and writes/commands still prompt on the companion device unless that toggle is disabled.
 
@@ -107,11 +107,11 @@ The MCP endpoint is authenticated and uses the same local trust boundaries as th
 
 1. `docs/openapi.yaml` now carries a placeholder server URL. Keep the schema content there, but do not rely on the checked-in server URL value for production.
 2. Run **`npm run docs:openapi`** so `docs/openapi.actions.json` / `.yaml` / `.min.json` stay in sync after any edit. Build and relay dev scripts run this automatically, but run it directly when you want to commit regenerated schema files without building.
-3. Create a Custom GPT and add an Action using the relay-hosted spec URL such as **`https://<device>.<tailnet>.ts.net/openapi.yaml`** or **`https://<device>.<tailnet>.ts.net/docs/openapi.yaml`**, or paste the app-generated JSON from the companion UI. The hosted relay and local relay rewrite `servers[0].url` to the incoming public origin automatically, and both serve the latest generated schema on each request. The spec is **OpenAPI 3.1.0** in the shape Custom GPT validation accepts (`components.schemas` as plain objects, **`additionalProperties`**, **`$ref` only where needed**). Each tool sets **`x-openai-isConsequential: false`** so ChatGPT treats calls as non-consequential; **trust and approvals still run on the companion device**. Request bodies use **`workspaceRoot`** (from `list_trusted_workspaces`), not a generic `workspace` field.
+3. Create a Custom GPT and add an Action using the relay-hosted spec URL such as **`https://<device>.<tailnet>.ts.net/openapi.yaml`** or **`https://<device>.<tailnet>.ts.net/docs/openapi.yaml`**, or paste the app-generated JSON from the companion UI. The hosted relay and local relay rewrite `servers[0].url` to the incoming public origin automatically, and both serve the latest generated schema on each request. The spec is **OpenAPI 3.1.0** in the shape Custom GPT validation accepts (`components.schemas` as plain objects, **`additionalProperties`**, **`$ref` only where needed**). Each tool sets **`x-openai-isConsequential: false`** so ChatGPT treats calls as non-consequential; **trust and approvals still run on the companion device**. `workspaceRoot` is optional for workspace tools and defaults on the companion to the selected current workspace; include it only to choose a different trusted root.
 4. Configure bearer auth in the Action using the relay API token.
 5. Paste `docs/custom-gpt-instructions.md` into the Custom GPT instructions. The same text is also served at `/docs/custom-gpt-instructions.md`, and the Action schema includes `get_gpt_instructions` so the GPT can refresh project-maintained guidance when that tool is available.
 6. In the companion app, set the matching relay URL, device ID, and device token, then add one or more trusted workspaces.
-7. Have the GPT call `list_trusted_workspaces` before using the file tools so it can pick a valid `workspaceRoot`.
+7. Have the GPT call `list_trusted_workspaces` before using file tools. Once the current workspace is established, Codex-style calls may rely on that default.
 
 ## First Launch
 
@@ -128,7 +128,7 @@ Use the Setup panel to:
 3. Enter the relay URL in Settings.
 4. Add a trusted workspace.
 5. Connect the ChatGPT custom app to the `/mcp` endpoint, or copy the GPT instructions into a legacy Custom GPT.
-6. ChatGPT should call `list_trusted_workspaces` to discover roots instead of relying on a pasted workspace path.
+6. ChatGPT should call `list_trusted_workspaces` to discover roots, then rely on the companion's current workspace by default instead of passing full paths on every call.
 
 The app will keep showing the next required step until the relay is connected and a workspace is trusted.
 
@@ -137,7 +137,7 @@ The app will keep showing the next required step until the relay is connected an
 - v1 exposes file tools, `run_command`, plus `list_trusted_workspaces` for workspace discovery over both MCP and the legacy REST Action API.
 - Reads, search, and stat run automatically inside trusted workspaces.
 - `run_command` plus Codex-compatible aliases (`shell`, `exec_command`, `shell_command`) provide the shell path for inspection, builds, and tests.
-- Shell tools accept Codex-style aliases such as `cmd` / `commandLine`, `working_directory`, `timeout_ms`, `max_output_bytes`, and one-shot `stdin` / `input`.
+- Shell tools accept Codex-style aliases such as `cmd` / `commandLine`, `workdir`, `working_directory`, `timeout_ms`, `max_output_bytes`, and one-shot `stdin` / `input`; `workdir` takes priority when multiple working-directory aliases are present.
 - `view_image` loads a local image from a trusted workspace and returns a base64 data URL.
 - `exec_command` can keep a Codex-style session alive and return `session_id`; `write_stdin` sends `chars` to that session or polls with empty `chars`.
 - `request_permissions` is a compatibility shim; dynamic sandbox escalation is not available in the relay architecture.

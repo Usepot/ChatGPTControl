@@ -108,14 +108,13 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The device rejects any path outside configured trusted roots regardless of this request.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The device rejects any path
+            outside configured trusted roots regardless of this request.
         path:
           type: string
           description: Relative path inside the workspace. Defaults to .
           default: "."
-      required:
-        - workspaceRoot
       additionalProperties: true
 
     ReadFileRequest:
@@ -128,8 +127,9 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The device rejects any path outside configured trusted roots regardless of this request.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The device rejects any path
+            outside configured trusted roots regardless of this request.
         path:
           type: string
           description: Relative file path inside the workspace.
@@ -143,7 +143,6 @@ components:
           type: integer
           minimum: 1
       required:
-        - workspaceRoot
         - path
       additionalProperties: true
 
@@ -157,8 +156,9 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The device rejects any path outside configured trusted roots regardless of this request.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The device rejects any path
+            outside configured trusted roots regardless of this request.
         path:
           type: string
         content:
@@ -167,7 +167,6 @@ components:
           type: boolean
           default: true
       required:
-        - workspaceRoot
         - path
         - content
       additionalProperties: true
@@ -202,8 +201,9 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The device rejects any path outside configured trusted roots regardless of this request.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The device rejects any path
+            outside configured trusted roots regardless of this request.
         patch:
           type: string
           description: >-
@@ -218,8 +218,6 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/PatchOperation"
-      required:
-        - workspaceRoot
       additionalProperties: true
 
     SearchFilesRequest:
@@ -232,8 +230,9 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The device rejects any path outside configured trusted roots regardless of this request.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The device rejects any path
+            outside configured trusted roots regardless of this request.
         path:
           type: string
           default: "."
@@ -261,7 +260,6 @@ components:
           description: Maximum parallel file search workers. The companion clamps this to a safe maximum.
           minimum: 1
       required:
-        - workspaceRoot
         - query
       additionalProperties: true
 
@@ -275,13 +273,12 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The device rejects any path outside configured trusted roots regardless of this request.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The device rejects any path
+            outside configured trusted roots regardless of this request.
         path:
           type: string
           default: "."
-      required:
-        - workspaceRoot
       additionalProperties: true
 
     MakeDirRequest:
@@ -294,12 +291,12 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The device rejects any path outside configured trusted roots regardless of this request.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The device rejects any path
+            outside configured trusted roots regardless of this request.
         path:
           type: string
       required:
-        - workspaceRoot
         - path
       additionalProperties: true
 
@@ -313,15 +310,15 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The device rejects any path outside configured trusted roots regardless of this request.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The device rejects any path
+            outside configured trusted roots regardless of this request.
         path:
           type: string
         recursive:
           type: boolean
           default: false
       required:
-        - workspaceRoot
         - path
       additionalProperties: true
 
@@ -335,14 +332,15 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The device rejects any path outside configured trusted roots regardless of this request.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The device rejects any path
+            outside configured trusted roots regardless of this request.
         command:
           type: string
           description: Command line to run from the trusted workspace.
         workdir:
           type: string
-          description: Codex-style alias for workingDirectory.
+          description: Codex-style working directory. Takes priority over workingDirectory.
         workingDirectory:
           type: string
           description: Relative working directory inside the workspace. Defaults to .
@@ -361,7 +359,6 @@ components:
           type: string
           description: Optional stdin text to write before closing stdin for this one-shot command.
       required:
-        - workspaceRoot
         - command
       additionalProperties: true
 
@@ -375,8 +372,9 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The device rejects any path outside configured trusted roots regardless of this request.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The device rejects any path
+            outside configured trusted roots regardless of this request.
         command:
           oneOf:
             - type: string
@@ -394,7 +392,7 @@ components:
           description: Alias for command.
         workdir:
           type: string
-          description: Codex-style relative working directory alias.
+          description: Codex-style working directory. Takes priority over workingDirectory aliases.
         workingDirectory:
           type: string
           description: Relative working directory inside the workspace. Defaults to .
@@ -444,8 +442,6 @@ components:
         input:
           type: string
           description: Alias for stdin.
-      required:
-        - workspaceRoot
       additionalProperties: true
 
     WriteStdinRequest:
@@ -507,8 +503,9 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The device rejects any path outside configured trusted roots regardless of this request.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The device rejects any path
+            outside configured trusted roots regardless of this request.
         path:
           type: string
           description: Relative path of a local image file inside the workspace.
@@ -517,7 +514,6 @@ components:
           description: Maximum image size to return as a data URL. Defaults to 5000000.
           minimum: 1
       required:
-        - workspaceRoot
         - path
       additionalProperties: true
 
@@ -531,8 +527,9 @@ components:
         workspaceRoot:
           type: string
           description: >-
-            Absolute path of a workspace the user has already trusted in the Portable Codex companion.
-            The screenshot is written inside this workspace.
+            Optional absolute path of a workspace the user has already trusted in the Portable Codex companion.
+            If omitted, the companion uses its selected current workspace. The screenshot is written
+            inside the resolved trusted workspace.
         path:
           type: string
           description: Relative PNG output path inside the workspace. Defaults to desktop_screenshot.png.
@@ -547,8 +544,6 @@ components:
           type: integer
           description: Maximum screenshot size to return inline as image data. Defaults to 5000000.
           minimum: 1
-      required:
-        - workspaceRoot
       additionalProperties: true
 
     ActionImage:
