@@ -355,7 +355,10 @@ public sealed class DeviceBroker
             "write_stdin" => $"process={request.ProcessId ?? request.SessionId ?? request.SessionIdSnake?.ToString() ?? "unknown"}",
             "request_permissions" => $"permissions={string.Join(",", request.Permissions ?? [])}",
             "view_image" => $"path={request.Path}",
-            "screenshot_desktop" => $"path={request.Path ?? "desktop_screenshot.png"}, screen={request.Screen ?? "primary"}",
+            "view_desktop" or "screenshot_desktop" => string.IsNullOrWhiteSpace(request.Path)
+                ? $"screen={request.Screen ?? "primary"}"
+                : $"path={request.Path}, screen={request.Screen ?? "primary"}",
+            "click_desktop" => $"x={request.X}, y={request.Y}, button={request.Button ?? "left"}, clicks={request.Clicks ?? 1}",
             _ => "unknown",
         };
     }

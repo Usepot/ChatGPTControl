@@ -23,7 +23,8 @@ public static class ProtocolConstants
         "write_stdin",
         "request_permissions",
         "view_image",
-        "screenshot_desktop",
+        "view_desktop",
+        "click_desktop",
     ];
 
     public static readonly IReadOnlyDictionary<string, string> ToolRouteMap = new Dictionary<string, string>
@@ -47,7 +48,8 @@ public static class ProtocolConstants
         ["write_stdin"] = "/tools/write-stdin",
         ["request_permissions"] = "/tools/request-permissions",
         ["view_image"] = "/tools/view-image",
-        ["screenshot_desktop"] = "/tools/screenshot-desktop",
+        ["view_desktop"] = "/tools/view-desktop",
+        ["click_desktop"] = "/tools/click-desktop",
     };
 
     public static readonly HashSet<string> WriteTools = new(StringComparer.OrdinalIgnoreCase)
@@ -59,6 +61,6 @@ public static class ProtocolConstants
         "shell",
         "exec_command",
         "shell_command",
-        "screenshot_desktop",
+        "click_desktop",
     };
 }

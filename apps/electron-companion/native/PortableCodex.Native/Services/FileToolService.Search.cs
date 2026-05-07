@@ -140,50 +140,65 @@ public sealed partial class FileToolService
         ToolExecutionContext context,
         CancellationToken cancellationToken)
     {
-        var path = string.IsNullOrWhiteSpace(request.Path) ? "desktop_screenshot.png" : request.Path;
-        if (!string.Equals(request.Screen ?? "primary", "primary", StringComparison.OrdinalIgnoreCase))
+        var path = string.IsNullOrWhiteSpace(request.Path) ? null : request.Path;
+        var requestedScreen = string.IsNullOrWhiteSpace(request.Screen) ? "primary" : request.Screen.Trim();
+
+        if (!string.IsNullOrWhiteSpace(path))
         {
-            throw new InvalidOperationException("screenshot_desktop currently supports screen=primary only");
+            if (string.IsNullOrWhiteSpace(request.WorkspaceRoot))
+            {
+                throw new InvalidOperationException("workspaceRoot is required when path is supplied for view_desktop");
+            }
+
+            AssertTrustedWorkspace(context.Settings, request.WorkspaceRoot);
+            var approved = await EnsureWriteApprovalAsync(
+                request,
+                $"View desktop screen {requestedScreen} and save image to {path}",
+                context);
+            if (!approved)
+            {
+                return Denied(request.RequestId, "User denied view_desktop request");
+            }
         }
 
-        var approved = await EnsureWriteApprovalAsync(
-            request,
-            $"Capture primary desktop screenshot to {path}",
-            context);
-        if (!approved)
-        {
-            return Denied(request.RequestId, "User denied screenshot_desktop request");
-        }
-
-        var absolutePath = _pathPolicy.ResolvePathWithinWorkspace(request.WorkspaceRoot!, path);
-        var parent = Path.GetDirectoryName(absolutePath);
-        if (!string.IsNullOrWhiteSpace(parent))
-        {
-            Directory.CreateDirectory(parent);
-        }
+        var absolutePath = string.IsNullOrWhiteSpace(path)
+            ? null
+            : _pathPolicy.ResolvePathWithinWorkspace(request.WorkspaceRoot!, path);
+        var bytes = Array.Empty<byte>();
 
         var bounds = Rectangle.Empty;
         await Task.Run(() =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            bounds = Screen.PrimaryScreen?.Bounds
-                ?? throw new InvalidOperationException("No primary screen is available");
+            bounds = ResolveDesktopCaptureBounds(requestedScreen);
             using var bitmap = new Bitmap(bounds.Width, bounds.Height);
             using var graphics = Graphics.FromImage(bitmap);
             graphics.CopyFromScreen(bounds.Location, System.Drawing.Point.Empty, bounds.Size);
-            bitmap.Save(absolutePath, ImageFormat.Png);
+            using var stream = new MemoryStream();
+            bitmap.Save(stream, ImageFormat.Png);
+            bytes = stream.ToArray();
         }, cancellationToken);
 
-        var fileInfo = new FileInfo(absolutePath);
+        if (!string.IsNullOrWhiteSpace(absolutePath))
+        {
+            var parent = Path.GetDirectoryName(absolutePath);
+            if (!string.IsNullOrWhiteSpace(parent))
+            {
+                Directory.CreateDirectory(parent);
+            }
+
+            await File.WriteAllBytesAsync(absolutePath, bytes, cancellationToken);
+        }
+
         var inlineLimit = request.MaxBytes.GetValueOrDefault(DefaultImageMaxBytes);
         if (inlineLimit <= 0)
         {
             inlineLimit = DefaultImageMaxBytes;
         }
 
-        var inlineImageReturned = fileInfo.Length <= inlineLimit;
+        var inlineImageReturned = bytes.Length <= inlineLimit;
         var dataUrl = inlineImageReturned
-            ? $"data:image/png;base64,{Convert.ToBase64String(await File.ReadAllBytesAsync(absolutePath, cancellationToken))}"
+            ? $"data:image/png;base64,{Convert.ToBase64String(bytes)}"
             : null;
 
         return Ok(
@@ -191,15 +206,55 @@ public sealed partial class FileToolService
             new
             {
                 path,
-                screen = "primary",
+                screen = requestedScreen,
                 width = bounds.Width,
                 height = bounds.Height,
-                bytes = fileInfo.Length,
+                bytes = bytes.Length,
                 mimeType = "image/png",
                 dataUrl,
                 inlineImageReturned,
                 inlineImageTruncated = !inlineImageReturned,
             });
+    }
+
+    private static Rectangle ResolveDesktopCaptureBounds(string requestedScreen)
+    {
+        if (string.Equals(requestedScreen, "all", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(requestedScreen, "virtual", StringComparison.OrdinalIgnoreCase))
+        {
+            var virtualBounds = SystemInformation.VirtualScreen;
+            if (virtualBounds.Width <= 0 || virtualBounds.Height <= 0)
+            {
+                throw new InvalidOperationException("No desktop screens are available");
+            }
+
+            return virtualBounds;
+        }
+
+        var screens = Screen.AllScreens;
+        if (screens.Length == 0)
+        {
+            throw new InvalidOperationException("No desktop screens are available");
+        }
+
+        if (string.Equals(requestedScreen, "primary", StringComparison.OrdinalIgnoreCase))
+        {
+            return Screen.PrimaryScreen?.Bounds
+                ?? screens.FirstOrDefault(screen => screen.Primary)?.Bounds
+                ?? throw new InvalidOperationException("No primary screen is available");
+        }
+
+        if (int.TryParse(requestedScreen, out var screenIndex))
+        {
+            if (screenIndex < 0 || screenIndex >= screens.Length)
+            {
+                throw new InvalidOperationException($"Desktop screen index {screenIndex} is not available; found {screens.Length} screen(s)");
+            }
+
+            return screens[screenIndex].Bounds;
+        }
+
+        throw new InvalidOperationException("view_desktop screen must be primary, all, virtual, or a zero-based display index such as 0 or 1");
     }
 
     private static int GetSearchThreadCount(ToolRequest request)

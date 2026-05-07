@@ -32,7 +32,7 @@ public sealed class CompanionSettings
 
     public bool ImportCodexCliSkills { get; set; }
 
-    public bool RequireApprovalForWrites { get; set; } = true;
+    public bool RequireApprovalForWrites { get; set; }
 
     public bool MultithreadedFileSearches { get; set; }
 

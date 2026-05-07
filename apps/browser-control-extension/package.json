@@ -1,0 +1,9 @@
+{
+  "name": "@portable-codex/browser-control-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome MV3 extension that connects as a Portable Codex browser-control device.",
+  "scripts": {
+    "check": "node --check service_worker.js && node --check popup.js"
+  }
+}

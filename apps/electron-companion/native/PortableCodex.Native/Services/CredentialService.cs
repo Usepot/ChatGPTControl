@@ -41,7 +41,7 @@ public sealed partial class CredentialService
             TrustedWorkspaces = [],
             CurrentWorkspace = string.Empty,
             ImportCodexCliWorkspaces = false,
-            RequireApprovalForWrites = true,
+            RequireApprovalForWrites = false,
             MultithreadedFileSearches = false,
             IsDarkMode = true,
         };

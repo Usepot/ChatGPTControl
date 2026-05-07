@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Portable Codex Browser Control</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      body {
+        box-sizing: border-box;
+        margin: 0;
+        min-width: 360px;
+        padding: 14px;
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 8px;
+      }
+      p {
+        color: color-mix(in srgb, CanvasText 70%, transparent);
+        font-size: 12px;
+        line-height: 1.35;
+        margin: 0 0 12px;
+      }
+      label {
+        display: grid;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 650;
+        margin: 10px 0;
+      }
+      input[type="text"], input[type="password"], input[type="url"] {
+        border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+        border-radius: 8px;
+        box-sizing: border-box;
+        font: inherit;
+        padding: 8px;
+        width: 100%;
+      }
+      .row {
+        align-items: center;
+        display: flex;
+        gap: 8px;
+        justify-content: space-between;
+      }
+      .check {
+        align-items: center;
+        display: flex;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        margin: 10px 0;
+      }
+      button {
+        border: 0;
+        border-radius: 999px;
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 750;
+        padding: 9px 12px;
+      }
+      button.primary {
+        background: #0f8f6f;
+        color: white;
+      }
+      button.secondary {
+        background: color-mix(in srgb, CanvasText 10%, transparent);
+        color: CanvasText;
+      }
+      .status {
+        border-radius: 10px;
+        margin: 10px 0 12px;
+        padding: 10px;
+        background: color-mix(in srgb, CanvasText 7%, transparent);
+        font-size: 12px;
+      }
+      .status strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .hint {
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Portable Codex Browser Control</h1>
+    <p>Configure this extension as a browser device. Use a device ID/token that exists in the relay's <code>RELAY_DEVICE_TOKENS</code>.</p>
+
+    <div class="status" id="status">
+      <strong>Loading…</strong>
+      <span></span>
+    </div>
+
+    <label>
+      Relay URL
+      <input id="relayUrl" type="url" spellcheck="false" placeholder="http://127.0.0.1:8787" />
+    </label>
+
+    <label>
+      Browser device ID
+      <input id="deviceId" type="text" spellcheck="false" placeholder="browser" />
+    </label>
+
+    <label>
+      Device name
+      <input id="deviceName" type="text" spellcheck="false" placeholder="Chrome Browser" />
+    </label>
+
+    <label>
+      Browser device token
+      <input id="deviceToken" type="password" spellcheck="false" placeholder="Paste relay device token" />
+      <span class="hint">Leave blank only if you do not want the extension to connect yet.</span>
+    </label>
+
+    <label class="check">
+      <input id="autoConnect" type="checkbox" />
+      Auto-connect
+    </label>
+
+    <label class="check">
+      <input id="allowUnsafeScript" type="checkbox" />
+      Allow browser_eval unsafe JavaScript tool
+    </label>
+
+    <div class="row">
+      <button id="save" class="primary" type="button">Save & Connect</button>
+      <button id="connect" class="secondary" type="button">Connect</button>
+      <button id="disconnect" class="secondary" type="button">Disconnect</button>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

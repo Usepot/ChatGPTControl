@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -18,6 +20,8 @@ public sealed class McpHttpResult
 public static class McpProtocolService
 {
     private const string ProtocolVersion = "2025-03-26";
+    private const string WebSearchTool = "web_search";
+    private static readonly HttpClient WebSearchHttpClient = new();
 
     public static async Task<McpHttpResult> HandleHttpBodyAsync(
         JsonNode? body,
@@ -173,7 +177,7 @@ public static class McpProtocolService
                 ["name"] = "portable-codex",
                 ["version"] = "0.1.0",
             },
-            ["instructions"] = "Portable Codex exposes trusted local workspaces through MCP tools. When workspaceRoot is omitted, the paired companion uses its selected current workspace; pass workspaceRoot only to target another trusted root.",
+            ["instructions"] = "Portable Codex exposes trusted local workspaces through MCP tools. Use web_search for current public web information when ChatGPT browsing is unavailable in app mode. When workspaceRoot is omitted, the paired companion uses its selected current workspace; pass workspaceRoot only to target another trusted root.",
         };
     }
 
@@ -189,6 +193,14 @@ public static class McpProtocolService
         }
 
         var tool = GetString(parametersObject, "name");
+        if (string.Equals(tool, WebSearchTool, StringComparison.Ordinal))
+        {
+            var localArguments = parametersObject["arguments"] as JsonObject ?? new JsonObject();
+            var localRequestId = GetString(localArguments, "requestId") ?? Guid.NewGuid().ToString();
+            var localResponse = await RunWebSearchAsync(localRequestId, localArguments, cancellationToken);
+            return CreateToolCallResult(localResponse);
+        }
+
         if (string.IsNullOrWhiteSpace(tool) || !ProtocolConstants.ToolNames.Contains(tool, StringComparer.Ordinal))
         {
             throw new McpMethodException(-32602, $"Unknown tool: {tool}");
@@ -274,9 +286,9 @@ public static class McpProtocolService
                     ["inputSchema"] = GetOperationInputSchema(operation, schemas),
                     ["annotations"] = new JsonObject
                     {
-                        ["readOnlyHint"] = !ProtocolConstants.WriteTools.Contains(tool),
-                        ["destructiveHint"] = string.Equals(tool, "delete_path", StringComparison.Ordinal) ||
-                                              string.Equals(tool, "apply_patch", StringComparison.Ordinal),
+                        ["readOnlyHint"] = true,
+                        ["destructiveHint"] = false,
+                        ["openWorldHint"] = false,
                     },
                     ["_meta"] = new JsonObject
                     {
@@ -286,7 +298,228 @@ public static class McpProtocolService
                 });
         }
 
+        tools.Add(BuildWebSearchToolDescriptor());
+
         return tools;
+    }
+
+    private static JsonObject BuildWebSearchToolDescriptor()
+    {
+        return new JsonObject
+        {
+            ["name"] = WebSearchTool,
+            ["title"] = "Web Search",
+            ["description"] = "Search the public web from the MCP server and return concise result titles, URLs, and snippets. Use for current information when ChatGPT web browsing is unavailable in app mode.",
+            ["inputSchema"] = new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject
+                {
+                    ["requestId"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Optional caller-generated request ID. The relay generates one if omitted.",
+                    },
+                    ["query"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Search query.",
+                    },
+                    ["maxResults"] = new JsonObject
+                    {
+                        ["type"] = "integer",
+                        ["description"] = "Maximum number of search results to return. Defaults to 5 and is clamped to 10.",
+                        ["minimum"] = 1,
+                        ["maximum"] = 10,
+                        ["default"] = 5,
+                    },
+                },
+                ["required"] = new JsonArray("query"),
+                ["additionalProperties"] = true,
+            },
+            ["annotations"] = new JsonObject
+            {
+                ["readOnlyHint"] = true,
+                ["destructiveHint"] = false,
+                ["openWorldHint"] = false,
+                ["idempotentHint"] = true,
+            },
+            ["_meta"] = new JsonObject
+            {
+                ["openai/toolInvocation/invoking"] = "Searching the web...",
+                ["openai/toolInvocation/invoked"] = "Web search complete",
+            },
+        };
+    }
+
+    private static async Task<ToolResponse> RunWebSearchAsync(string requestId, JsonObject arguments, CancellationToken cancellationToken)
+    {
+        var query = GetString(arguments, "query")?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return new ToolResponse
+            {
+                RequestId = requestId,
+                Status = "error",
+                Error = new ToolError
+                {
+                    Code = "WEB_SEARCH_QUERY_REQUIRED",
+                    Message = "web_search requires a non-empty query string.",
+                },
+            };
+        }
+
+        var maxResults = ClampInteger(arguments["maxResults"], 5, 1, 10);
+        var requestUri = new Uri($"https://html.duckduckgo.com/html/?q={Uri.EscapeDataString(query)}");
+
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+            request.Headers.Accept.ParseAdd("text/html,application/xhtml+xml");
+            request.Headers.UserAgent.ParseAdd("PortableCodex/0.1");
+
+            using var response = await WebSearchHttpClient.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return new ToolResponse
+                {
+                    RequestId = requestId,
+                    Status = "error",
+                    Error = new ToolError
+                    {
+                        Code = "WEB_SEARCH_HTTP_ERROR",
+                        Message = $"Search provider returned HTTP {(int)response.StatusCode}.",
+                    },
+                };
+            }
+
+            var html = await response.Content.ReadAsStringAsync(cancellationToken);
+            return new ToolResponse
+            {
+                RequestId = requestId,
+                Status = "ok",
+                Result = new JsonObject
+                {
+                    ["query"] = query,
+                    ["provider"] = "DuckDuckGo HTML",
+                    ["results"] = ParseDuckDuckGoResults(html, maxResults),
+                },
+            };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return new ToolResponse
+            {
+                RequestId = requestId,
+                Status = "error",
+                Error = new ToolError
+                {
+                    Code = "WEB_SEARCH_TIMEOUT",
+                    Message = "Web search was canceled or timed out.",
+                },
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ToolResponse
+            {
+                RequestId = requestId,
+                Status = "error",
+                Error = new ToolError
+                {
+                    Code = "WEB_SEARCH_FAILED",
+                    Message = ex.Message,
+                },
+            };
+        }
+    }
+
+    private static JsonArray ParseDuckDuckGoResults(string html, int maxResults)
+    {
+        var anchors = Regex.Matches(
+            html,
+            "<a\\b[^>]*class=[\"'][^\"']*result__a[^\"']*[\"'][^>]*href=[\"']([^\"']+)[\"'][^>]*>(.*?)</a>",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        var results = new JsonArray();
+        var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (var index = 0; index < anchors.Count && results.Count < maxResults; index++)
+        {
+            var anchor = anchors[index];
+            var url = NormalizeDuckDuckGoResultUrl(WebUtility.HtmlDecode(anchor.Groups[1].Value));
+            var title = StripHtml(anchor.Groups[2].Value);
+            if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(title) || !seenUrls.Add(url))
+            {
+                continue;
+            }
+
+            var nextIndex = index + 1 < anchors.Count ? anchors[index + 1].Index : html.Length;
+            var block = html[anchor.Index..nextIndex];
+            var snippetMatch = Regex.Match(
+                block,
+                "class=[\"'][^\"']*result__snippet[^\"']*[\"'][^>]*>(.*?)</(?:a|div)>",
+                RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant);
+            var snippet = snippetMatch.Success ? StripHtml(snippetMatch.Groups[1].Value) : string.Empty;
+
+            var result = new JsonObject
+            {
+                ["title"] = title,
+                ["url"] = url,
+            };
+            if (!string.IsNullOrWhiteSpace(snippet))
+            {
+                result["snippet"] = snippet;
+            }
+
+            results.Add(result);
+        }
+
+        return results;
+    }
+
+    private static string NormalizeDuckDuckGoResultUrl(string rawUrl)
+    {
+        try
+        {
+            var uri = new Uri(new Uri("https://duckduckgo.com"), rawUrl);
+            var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+            return query.TryGetValue("uddg", out var redirected) && !string.IsNullOrWhiteSpace(redirected)
+                ? redirected.ToString()
+                : uri.ToString();
+        }
+        catch
+        {
+            return rawUrl;
+        }
+    }
+
+    private static string StripHtml(string value)
+    {
+        var noTags = Regex.Replace(value, "<[^>]*>", " ", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+        var decoded = WebUtility.HtmlDecode(noTags);
+        return Regex.Replace(decoded, "\\s+", " ", RegexOptions.CultureInvariant).Trim();
+    }
+
+    private static int ClampInteger(JsonNode? node, int fallback, int minimum, int maximum)
+    {
+        var parsed = fallback;
+        try
+        {
+            parsed = node?.GetValue<int>() ?? fallback;
+        }
+        catch
+        {
+            try
+            {
+                parsed = int.Parse(node?.GetValue<string>() ?? string.Empty, CultureInfo.InvariantCulture);
+            }
+            catch
+            {
+                parsed = fallback;
+            }
+        }
+
+        return Math.Min(maximum, Math.Max(minimum, parsed));
     }
 
     private static JsonNode GetOperationInputSchema(JsonObject operation, JsonObject schemas)

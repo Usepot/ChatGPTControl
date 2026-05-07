@@ -7,6 +7,7 @@ import {
   type ToolResponse,
 } from "@portable-codex/shared";
 import type { ApiPrincipal } from "./config.js";
+import type { ImageArtifactRecord } from "./artifacts.js";
 import { renderOpenApiJson } from "./openapi.js";
 
 type JsonPrimitive = string | number | boolean | null;
@@ -32,6 +33,7 @@ interface JsonRpcResponse {
 }
 
 type McpContentItem = JsonObject;
+type McpLocalToolName = "web_search";
 
 export interface McpHttpResult {
   httpStatus: number;
@@ -42,45 +44,53 @@ export interface McpRequestContext {
   body: unknown;
   principal?: ApiPrincipal;
   publicBaseUrl?: string;
+  registerImageArtifact?(input: {
+    deviceId?: string;
+    workspaceRoot?: string;
+    path: string;
+    mimeType: string;
+    bytes?: number;
+  }): ImageArtifactRecord;
   dispatch(request: ToolRequest): Promise<ToolResponse>;
 }
 
 const MCP_PROTOCOL_VERSION = "2025-03-26";
 const MCP_APP_RESOURCE_URI = "ui://portable-codex/workspaces-v1.html";
 const MCP_APP_MIME_TYPE = "text/html;profile=mcp-app";
+const MCP_WEB_SEARCH_TOOL: McpLocalToolName = "web_search";
+const MCP_LOCAL_TOOL_NAMES = new Set<string>([MCP_WEB_SEARCH_TOOL]);
+const MCP_WRITE_TOOLS = new Set<ToolName>([
+  "write_file",
+  "apply_patch",
+  "delete_path",
+  "run_command",
+  "shell",
+  "exec_command",
+  "shell_command",
+  "click_desktop",
+  "browser_click",
+  "browser_fill",
+  "browser_keypress",
+  "browser_navigate",
+  "browser_back",
+  "browser_forward",
+  "browser_reload",
+  "browser_eval",
+]);
+const MCP_OPEN_WORLD_TOOLS = new Set<ToolName>([
+  "run_command",
+  "shell",
+  "exec_command",
+  "shell_command",
+  "browser_navigate",
+  "browser_eval",
+]);
 const MCP_APP_SECURITY_SCHEMES: JsonObject[] = [
   {
     type: "http",
     scheme: "bearer",
   },
 ];
-const WRITE_TOOLS = new Set<ToolName>([
-  "write_file",
-  "apply_patch",
-  "delete_path",
-  "run_command",
-  "shell",
-  "exec_command",
-  "shell_command",
-  "screenshot_desktop",
-]);
-const DESTRUCTIVE_TOOLS = new Set<ToolName>([
-  "write_file",
-  "apply_patch",
-  "delete_path",
-  "run_command",
-  "shell",
-  "exec_command",
-  "shell_command",
-  "screenshot_desktop",
-]);
-const OPEN_WORLD_TOOLS = new Set<ToolName>([
-  "run_command",
-  "shell",
-  "exec_command",
-  "shell_command",
-]);
-
 export async function handleMcpHttpBody(context: McpRequestContext): Promise<McpHttpResult> {
   const body = context.body;
   if (Array.isArray(body)) {
@@ -182,7 +192,7 @@ function createInitializeResult(params: unknown): JsonObject {
       version: "0.1.0",
     },
     instructions:
-      "Portable Codex exposes trusted local workspaces through MCP tools. When workspaceRoot is omitted, the paired companion uses its selected current workspace; pass workspaceRoot only to target another trusted root.",
+      "Portable Codex exposes trusted local workspaces through MCP tools. Use web_search for current public web information when ChatGPT browsing is unavailable in app mode. When workspaceRoot is omitted, the paired companion uses its selected current workspace; pass workspaceRoot only to target another trusted root.",
   };
 }
 
@@ -192,6 +202,10 @@ async function callTool(params: unknown, context: McpRequestContext): Promise<Js
   }
 
   const tool = params.name;
+  if (MCP_LOCAL_TOOL_NAMES.has(tool)) {
+    return await callMcpLocalTool(tool, params.arguments);
+  }
+
   if (!isToolName(tool)) {
     throw new McpMethodError(-32602, `Unknown tool: ${tool}`);
   }
@@ -211,23 +225,155 @@ async function callTool(params: unknown, context: McpRequestContext): Promise<Js
   }
 
   const response = await context.dispatch(request);
-  const structuredContent = toJsonObject({
-    requestId: response.requestId,
-    status: response.status,
-    result: sanitizeInlineImageData(response.result) ?? null,
-    error: response.error ?? null,
-    approvalRequired: response.approvalRequired ?? null,
+  return createToolCallResult(withImageArtifactUrl(response, request, context));
+}
+
+async function callMcpLocalTool(tool: string, rawArgs: unknown): Promise<JsonObject> {
+  if (tool !== MCP_WEB_SEARCH_TOOL) {
+    throw new McpMethodError(-32602, `Unknown tool: ${tool}`);
+  }
+
+  const args = isRecord(rawArgs) ? rawArgs : {};
+  const requestId = typeof args.requestId === "string" ? args.requestId : createRequestId();
+  const response = await runWebSearch(requestId, args);
+  return createToolCallResult(response);
+}
+
+function withImageArtifactUrl(
+  response: ToolResponse,
+  request: ToolRequest,
+  context: McpRequestContext,
+): ToolResponse {
+  if (response.status !== "ok") {
+    return response;
+  }
+
+  const result = attachImageArtifactUrl(response.result, request, context);
+  return result === response.result ? response : { ...response, result };
+}
+
+function attachImageArtifactUrl(
+  value: unknown,
+  request: ToolRequest,
+  context: McpRequestContext,
+): unknown {
+  if (!isRecord(value) || !isArtifactBackedImageTool(request.tool) || context.registerImageArtifact === undefined || !context.publicBaseUrl) {
+    return value;
+  }
+
+  const path = typeof value.path === "string" && value.path.trim().length > 0
+    ? value.path
+    : "path" in request && typeof request.path === "string" && request.path.trim().length > 0
+      ? request.path
+      : undefined;
+  const mimeType = typeof value.mimeType === "string" ? value.mimeType : undefined;
+  if (path === undefined || mimeType === undefined || !mimeType.toLowerCase().startsWith("image/")) {
+    return value;
+  }
+
+  const record = context.registerImageArtifact({
+    path,
+    mimeType,
+    deviceId: "deviceId" in request ? request.deviceId : undefined,
+    workspaceRoot: "workspaceRoot" in request ? request.workspaceRoot : undefined,
+    bytes: typeof value.bytes === "number" ? value.bytes : undefined,
   });
 
   return {
+    ...value,
+    path,
+    artifactId: record.id,
+    imageUrl: `${context.publicBaseUrl}/artifacts/${record.id}`,
+    expiresAt: record.expiresAt,
+  };
+}
+
+function isArtifactBackedImageTool(tool: ToolName): boolean {
+  return tool === "view_image" || tool === "view_desktop";
+}
+
+function createToolCallResult(response: ToolResponse): JsonObject {
+  return {
     content: buildToolContent(response),
-    structuredContent,
+    structuredContent: toJsonObject({
+      requestId: response.requestId,
+      status: response.status,
+      result: sanitizeInlineImageData(response.result) ?? null,
+      error: response.error ?? null,
+      approvalRequired: response.approvalRequired ?? null,
+    }),
     isError: response.status !== "ok",
     _meta: {
       requestId: response.requestId,
       status: response.status,
     },
   };
+}
+
+async function runWebSearch(requestId: string, args: Record<string, unknown>): Promise<ToolResponse> {
+  const query = typeof args.query === "string" ? args.query.trim() : "";
+  if (query.length === 0) {
+    return {
+      requestId,
+      status: "error",
+      error: {
+        code: "WEB_SEARCH_QUERY_REQUIRED",
+        message: "web_search requires a non-empty query string.",
+      },
+    };
+  }
+
+  const maxResults = clampInteger(args.maxResults, 5, 1, 10);
+  const searchUrl = new URL("https://html.duckduckgo.com/html/");
+  searchUrl.searchParams.set("q", query);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(searchUrl, {
+      headers: {
+        accept: "text/html,application/xhtml+xml",
+        "user-agent": "PortableCodex/0.1 web_search MCP tool",
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return {
+        requestId,
+        status: "error",
+        error: {
+          code: "WEB_SEARCH_HTTP_ERROR",
+          message: `Search provider returned HTTP ${response.status}.`,
+        },
+      };
+    }
+
+    const html = await response.text();
+    const results = parseDuckDuckGoResults(html, maxResults);
+    return {
+      requestId,
+      status: "ok",
+      result: {
+        query,
+        provider: "DuckDuckGo HTML",
+        results,
+      },
+    };
+  } catch (error) {
+    return {
+      requestId,
+      status: "error",
+      error: {
+        code: error instanceof DOMException && error.name === "AbortError"
+          ? "WEB_SEARCH_TIMEOUT"
+          : "WEB_SEARCH_FAILED",
+        message: error instanceof Error ? error.message : "Web search failed.",
+      },
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function buildMcpToolDescriptors(publicBaseUrl?: string): JsonObject[] {
@@ -237,10 +383,11 @@ function buildMcpToolDescriptors(publicBaseUrl?: string): JsonObject[] {
   };
   const schemas = openApi.components?.schemas ?? {};
 
-  return (Object.entries(TOOL_ROUTE_MAP) as Array<[ToolName, string]>).map(([tool, route]) => {
-    const operation = openApi.paths?.[route]?.post ?? {};
+  const tools: JsonObject[] = (Object.entries(TOOL_ROUTE_MAP) as Array<[ToolName, string]>).map(([tool, route]) => {
+    const operation = getMcpOpenApiOperation(openApi.paths, tool, route);
     const inputSchema = getOperationInputSchema(operation, schemas);
     const title = toTitleCase(tool);
+    const writeTool = MCP_WRITE_TOOLS.has(tool);
 
     return {
       name: tool,
@@ -249,10 +396,10 @@ function buildMcpToolDescriptors(publicBaseUrl?: string): JsonObject[] {
       inputSchema,
       securitySchemes: MCP_APP_SECURITY_SCHEMES,
       annotations: {
-        readOnlyHint: !WRITE_TOOLS.has(tool),
-        destructiveHint: DESTRUCTIVE_TOOLS.has(tool),
-        openWorldHint: OPEN_WORLD_TOOLS.has(tool),
-        idempotentHint: !WRITE_TOOLS.has(tool),
+        readOnlyHint: !writeTool,
+        destructiveHint: writeTool,
+        openWorldHint: MCP_OPEN_WORLD_TOOLS.has(tool),
+        idempotentHint: !writeTool,
       },
       _meta: {
         securitySchemes: MCP_APP_SECURITY_SCHEMES,
@@ -267,6 +414,150 @@ function buildMcpToolDescriptors(publicBaseUrl?: string): JsonObject[] {
       },
     };
   });
+
+  tools.push(buildWebSearchToolDescriptor());
+  return tools;
+}
+
+function getMcpOpenApiOperation(
+  paths: Record<string, { post?: Record<string, unknown> }> | undefined,
+  tool: ToolName,
+  route: string,
+): Record<string, unknown> {
+  const operation = paths?.[route]?.post;
+  if (operation !== undefined) {
+    return operation;
+  }
+
+  if (tool === "shell_command") {
+    return paths?.[TOOL_ROUTE_MAP.shell]?.post ?? {};
+  }
+
+  return {};
+}
+
+function buildWebSearchToolDescriptor(): JsonObject {
+  return {
+    name: MCP_WEB_SEARCH_TOOL,
+    title: "Web Search",
+    description:
+      "Search the public web from the MCP server and return concise result titles, URLs, and snippets. Use for current information when ChatGPT web browsing is unavailable in app mode.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        requestId: {
+          type: "string",
+          description: "Optional caller-generated request ID. The relay generates one if omitted.",
+        },
+        query: {
+          type: "string",
+          description: "Search query.",
+        },
+        maxResults: {
+          type: "integer",
+          description: "Maximum number of search results to return. Defaults to 5 and is clamped to 10.",
+          minimum: 1,
+          maximum: 10,
+          default: 5,
+        },
+      },
+      required: ["query"],
+      additionalProperties: true,
+    },
+    securitySchemes: MCP_APP_SECURITY_SCHEMES,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+      idempotentHint: true,
+    },
+    _meta: {
+      securitySchemes: MCP_APP_SECURITY_SCHEMES,
+      "openai/toolInvocation/invoking": "Searching the web...",
+      "openai/toolInvocation/invoked": "Web search complete",
+    },
+  };
+}
+
+function parseDuckDuckGoResults(html: string, maxResults: number): JsonObject[] {
+  const anchors = Array.from(
+    html.matchAll(/<a\b[^>]*class=["'][^"']*result__a[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gis),
+  );
+  const results: JsonObject[] = [];
+  const seenUrls = new Set<string>();
+
+  for (let index = 0; index < anchors.length && results.length < maxResults; index += 1) {
+    const anchor = anchors[index];
+    const rawUrl = decodeHtml(anchor[1] ?? "");
+    const url = normalizeDuckDuckGoResultUrl(rawUrl);
+    const title = stripHtml(anchor[2] ?? "");
+    if (title.length === 0 || url.length === 0 || seenUrls.has(url)) {
+      continue;
+    }
+
+    const nextIndex = anchors[index + 1]?.index ?? html.length;
+    const block = html.slice(anchor.index ?? 0, nextIndex);
+    const snippetMatch = /class=["'][^"']*result__snippet[^"']*["'][^>]*>(.*?)<\/(?:a|div)>/is.exec(block);
+    const snippet = snippetMatch ? stripHtml(snippetMatch[1] ?? "") : "";
+
+    seenUrls.add(url);
+    results.push({
+      title,
+      url,
+      ...(snippet.length > 0 ? { snippet } : {}),
+    });
+  }
+
+  return results;
+}
+
+function normalizeDuckDuckGoResultUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl, "https://duckduckgo.com");
+    const redirected = parsed.searchParams.get("uddg");
+    return redirected !== null && redirected.length > 0 ? redirected : parsed.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
+function stripHtml(value: string): string {
+  return decodeHtml(value.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+}
+
+function decodeHtml(value: string): string {
+  const namedEntities: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    gt: ">",
+    lt: "<",
+    nbsp: " ",
+    quot: '"',
+  };
+
+  return value.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity: string) => {
+    const lowerEntity = entity.toLowerCase();
+    if (lowerEntity.startsWith("#x")) {
+      const codePoint = Number.parseInt(lowerEntity.slice(2), 16);
+      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+    }
+
+    if (lowerEntity.startsWith("#")) {
+      const codePoint = Number.parseInt(lowerEntity.slice(1), 10);
+      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+    }
+
+    return namedEntities[lowerEntity] ?? match;
+  });
+}
+
+function clampInteger(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = typeof value === "number" ? value : Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, Math.trunc(parsed)));
 }
 
 function buildMcpAppResourceDescriptor(): JsonObject {
@@ -578,7 +869,9 @@ function toolRequiresWorkspaceRoot(tool: ToolName): boolean {
     tool !== "list_skills" &&
     tool !== "get_skill" &&
     tool !== "write_stdin" &&
-    tool !== "request_permissions";
+    tool !== "request_permissions" &&
+    tool !== "click_desktop" &&
+    !tool.startsWith("browser_");
 }
 
 function toTitleCase(value: string): string {

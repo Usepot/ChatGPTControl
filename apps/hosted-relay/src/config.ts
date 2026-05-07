@@ -10,6 +10,8 @@ export interface RelayConfig {
   apiPrincipals: ApiPrincipal[];
   deviceTokens: Map<string, string>;
   publicBaseUrl?: string;
+  artifactTtlMs?: number;
+  artifactMaxBytes?: number;
 }
 
 function parseApiPrincipals(raw: string | undefined): ApiPrincipal[] {
@@ -56,5 +58,7 @@ export function loadRelayConfig(env: NodeJS.ProcessEnv = process.env): RelayConf
     apiPrincipals: parseApiPrincipals(env.RELAY_API_KEYS),
     deviceTokens: parseDeviceTokens(env.RELAY_DEVICE_TOKENS),
     publicBaseUrl: env.RELAY_PUBLIC_BASE_URL?.trim() || undefined,
+    artifactTtlMs: Number(env.RELAY_ARTIFACT_TTL_MS ?? 600000),
+    artifactMaxBytes: Number(env.RELAY_ARTIFACT_MAX_BYTES ?? 10000000),
   };
 }

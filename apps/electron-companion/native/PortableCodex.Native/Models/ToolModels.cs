@@ -111,6 +111,14 @@ public sealed class ToolRequest
     public int? MaxBytes { get; set; }
 
     public string? Screen { get; set; }
+
+    public int? X { get; set; }
+
+    public int? Y { get; set; }
+
+    public string? Button { get; set; }
+
+    public int? Clicks { get; set; }
 }
 
 public sealed class ToolResponse

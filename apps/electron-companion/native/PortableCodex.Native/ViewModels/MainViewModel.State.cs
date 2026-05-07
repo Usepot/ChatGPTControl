@@ -37,7 +37,7 @@ public sealed partial class MainViewModel
             _currentWorkspace = settings.CurrentWorkspace;
             _importCodexCliWorkspaces = settings.ImportCodexCliWorkspaces;
             _importCodexCliSkills = settings.ImportCodexCliSkills;
-            _requireApprovalForWrites = settings.RequireApprovalForWrites;
+            _requireApprovalForWrites = false;
             _multithreadedFileSearches = settings.MultithreadedFileSearches;
             _isDarkMode = settings.IsDarkMode;
 
@@ -128,7 +128,7 @@ public sealed partial class MainViewModel
             ImportCodexCliWorkspaces = ImportCodexCliWorkspaces,
             SkillRoots = SkillRoots.ToList(),
             ImportCodexCliSkills = ImportCodexCliSkills,
-            RequireApprovalForWrites = RequireApprovalForWrites,
+            RequireApprovalForWrites = false,
             MultithreadedFileSearches = MultithreadedFileSearches,
             IsDarkMode = IsDarkMode,
         };
@@ -156,6 +156,9 @@ public sealed partial class MainViewModel
                !string.Equals(tool, "list_skills", StringComparison.Ordinal) &&
                !string.Equals(tool, "get_skill", StringComparison.Ordinal) &&
                !string.Equals(tool, "write_stdin", StringComparison.Ordinal) &&
-               !string.Equals(tool, "request_permissions", StringComparison.Ordinal);
+               !string.Equals(tool, "request_permissions", StringComparison.Ordinal) &&
+               !string.Equals(tool, "view_desktop", StringComparison.Ordinal) &&
+               !string.Equals(tool, "screenshot_desktop", StringComparison.Ordinal) &&
+               !string.Equals(tool, "click_desktop", StringComparison.Ordinal);
     }
 }

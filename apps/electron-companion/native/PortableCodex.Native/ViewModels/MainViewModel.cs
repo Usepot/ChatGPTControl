@@ -66,7 +66,7 @@ public sealed partial class MainViewModel : ObservableObject
     private string _currentWorkspace = string.Empty;
     private bool _importCodexCliWorkspaces;
     private bool _importCodexCliSkills;
-    private bool _requireApprovalForWrites = true;
+    private bool _requireApprovalForWrites;
     private bool _multithreadedFileSearches;
     private bool _isDarkMode = true;
 

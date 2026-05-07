@@ -61,6 +61,16 @@ public sealed partial class FileToolService
                 return await HandleWriteStdinAsync(request, cancellationToken);
             }
 
+            if (request.Tool == "click_desktop")
+            {
+                return await HandleClickDesktopAsync(request, context, cancellationToken);
+            }
+
+            if (request.Tool is "view_desktop" or "screenshot_desktop")
+            {
+                return await HandleScreenshotDesktopAsync(request, context, cancellationToken);
+            }
+
             if (string.IsNullOrWhiteSpace(request.WorkspaceRoot))
             {
                 return Error(
@@ -90,7 +100,6 @@ public sealed partial class FileToolService
                 "delete_path" => await HandleDeleteRequestAsync(request, context, cancellationToken),
                 "run_command" or "shell" or "exec_command" or "shell_command" => await HandleRunCommandAsync(request, context, cancellationToken),
                 "view_image" => Ok(request.RequestId, await ViewImageAsync(request.WorkspaceRoot!, RequirePath(request), request.MaxBytes, cancellationToken)),
-                "screenshot_desktop" => await HandleScreenshotDesktopAsync(request, context, cancellationToken),
                 _ => Error(request.RequestId, "UNSUPPORTED_TOOL", "Unsupported tool"),
             };
         }
@@ -120,7 +129,10 @@ public sealed partial class FileToolService
             "write_stdin" => "Write stdin to running command",
             "request_permissions" => "Request sandbox permissions",
             "view_image" => $"View image {request.Path}",
-            "screenshot_desktop" => $"Capture desktop screenshot to {request.Path ?? "desktop_screenshot.png"}",
+            "view_desktop" or "screenshot_desktop" => string.IsNullOrWhiteSpace(request.Path)
+                ? "View desktop"
+                : $"View desktop and save image to {request.Path}",
+            "click_desktop" => $"Click desktop at ({request.X}, {request.Y}) with {request.Button ?? "left"} button ({request.Clicks ?? 1} click{(request.Clicks.GetValueOrDefault(1) == 1 ? string.Empty : "s")})",
             _ => "Unknown request",
         };
     }

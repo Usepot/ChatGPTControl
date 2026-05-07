@@ -18,7 +18,18 @@ export const TOOL_NAMES = [
   "write_stdin",
   "request_permissions",
   "view_image",
-  "screenshot_desktop",
+  "view_desktop",
+  "click_desktop",
+  "browser_get_state",
+  "browser_click",
+  "browser_fill",
+  "browser_keypress",
+  "browser_navigate",
+  "browser_back",
+  "browser_forward",
+  "browser_reload",
+  "browser_screenshot",
+  "browser_eval",
 ] as const;
 
 export type ToolName = (typeof TOOL_NAMES)[number];
@@ -168,11 +179,97 @@ export interface ViewImageRequest extends ToolRequestBase {
   maxBytes?: number;
 }
 
-export interface ScreenshotDesktopRequest extends ToolRequestBase {
-  tool: "screenshot_desktop";
+export interface ViewDesktopRequest extends ToolRequestBase {
+  tool: "view_desktop";
   path?: string;
-  screen?: "primary";
+  screen?: "primary" | "all" | string;
   maxBytes?: number;
+}
+
+export interface ClickDesktopRequest extends ToolRequestEnvelope {
+  tool: "click_desktop";
+  x: number;
+  y: number;
+  button?: "left" | "right" | "middle";
+  clicks?: number;
+}
+
+export interface BrowserToolRequestBase extends ToolRequestEnvelope {
+  tabId?: number;
+}
+
+export interface BrowserGetStateRequest extends BrowserToolRequestBase {
+  tool: "browser_get_state";
+  selector?: string;
+  includeHtml?: boolean;
+  includeText?: boolean;
+  maxHtmlBytes?: number;
+  maxElements?: number;
+  redact?: boolean;
+}
+
+export interface BrowserClickRequest extends BrowserToolRequestBase {
+  tool: "browser_click";
+  selector?: string;
+  text?: string;
+  x?: number;
+  y?: number;
+  button?: "left" | "right" | "middle";
+  clicks?: number;
+  scrollIntoView?: boolean;
+  waitAfterMs?: number;
+}
+
+export interface BrowserFillRequest extends BrowserToolRequestBase {
+  tool: "browser_fill";
+  selector?: string;
+  text?: string;
+  value: string;
+  clear?: boolean;
+  submit?: boolean;
+}
+
+export interface BrowserKeypressRequest extends BrowserToolRequestBase {
+  tool: "browser_keypress";
+  selector?: string;
+  key: string;
+  ctrlKey?: boolean;
+  altKey?: boolean;
+  shiftKey?: boolean;
+  metaKey?: boolean;
+}
+
+export interface BrowserNavigateRequest extends ToolRequestEnvelope {
+  tool: "browser_navigate";
+  url: string;
+  tabId?: number;
+  newTab?: boolean;
+}
+
+export interface BrowserBackRequest extends BrowserToolRequestBase {
+  tool: "browser_back";
+}
+
+export interface BrowserForwardRequest extends BrowserToolRequestBase {
+  tool: "browser_forward";
+}
+
+export interface BrowserReloadRequest extends BrowserToolRequestBase {
+  tool: "browser_reload";
+  bypassCache?: boolean;
+}
+
+export interface BrowserScreenshotRequest extends BrowserToolRequestBase {
+  tool: "browser_screenshot";
+  format?: "png" | "jpeg";
+  quality?: number;
+}
+
+export interface BrowserEvalRequest extends BrowserToolRequestBase {
+  tool: "browser_eval";
+  code: string;
+  args?: unknown[];
+  allowUnsafeScript?: boolean;
 }
 
 export type ToolRequest =
@@ -193,7 +290,18 @@ export type ToolRequest =
   | WriteStdinRequest
   | RequestPermissionsRequest
   | ViewImageRequest
-  | ScreenshotDesktopRequest;
+  | ViewDesktopRequest
+  | ClickDesktopRequest
+  | BrowserGetStateRequest
+  | BrowserClickRequest
+  | BrowserFillRequest
+  | BrowserKeypressRequest
+  | BrowserNavigateRequest
+  | BrowserBackRequest
+  | BrowserForwardRequest
+  | BrowserReloadRequest
+  | BrowserScreenshotRequest
+  | BrowserEvalRequest;
 
 export interface DirectoryEntry {
   name: string;
@@ -294,7 +402,18 @@ export const TOOL_ROUTE_MAP: Record<ToolName, string> = {
   write_stdin: "/tools/write-stdin",
   request_permissions: "/tools/request-permissions",
   view_image: "/tools/view-image",
-  screenshot_desktop: "/tools/screenshot-desktop",
+  view_desktop: "/tools/view-desktop",
+  click_desktop: "/tools/click-desktop",
+  browser_get_state: "/tools/browser-get-state",
+  browser_click: "/tools/browser-click",
+  browser_fill: "/tools/browser-fill",
+  browser_keypress: "/tools/browser-keypress",
+  browser_navigate: "/tools/browser-navigate",
+  browser_back: "/tools/browser-back",
+  browser_forward: "/tools/browser-forward",
+  browser_reload: "/tools/browser-reload",
+  browser_screenshot: "/tools/browser-screenshot",
+  browser_eval: "/tools/browser-eval",
 };
 
 export interface PairingConfig {

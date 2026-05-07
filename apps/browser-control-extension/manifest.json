@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Portable Codex Browser Control",
+  "description": "Connects Chrome to Portable Codex so ChatGPT can inspect page HTML, click, fill, navigate, and capture screenshots with user-configured relay credentials.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Browser Control",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "service_worker.js",
+    "type": "module"
+  },
+  "permissions": [
+    "activeTab",
+    "alarms",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ]
+}

@@ -234,6 +234,26 @@ function summarizeRequest(request: ToolRequest): string {
       return `path=${request.path}, recursive=${Boolean(request.recursive)}`;
     case "run_command":
       return `command=${request.command}, cwd=${request.workingDirectory ?? "."}`;
+    case "browser_get_state":
+      return `tabId=${request.tabId ?? "active"}, selector=${request.selector ?? "document"}`;
+    case "browser_click":
+      return `tabId=${request.tabId ?? "active"}, selector=${request.selector ?? ""}, text=${request.text ?? ""}`;
+    case "browser_fill":
+      return `tabId=${request.tabId ?? "active"}, selector=${request.selector ?? ""}, valueBytes=${Buffer.byteLength(request.value)}`;
+    case "browser_keypress":
+      return `tabId=${request.tabId ?? "active"}, key=${request.key}`;
+    case "browser_navigate":
+      return `tabId=${request.tabId ?? "active"}, url=${request.url}`;
+    case "browser_back":
+      return `tabId=${request.tabId ?? "active"}, back`;
+    case "browser_forward":
+      return `tabId=${request.tabId ?? "active"}, forward`;
+    case "browser_reload":
+      return `tabId=${request.tabId ?? "active"}, reload`;
+    case "browser_screenshot":
+      return `tabId=${request.tabId ?? "active"}, screenshot`;
+    case "browser_eval":
+      return `tabId=${request.tabId ?? "active"}, codeBytes=${Buffer.byteLength(request.code)}`;
     default:
       return "unknown";
   }

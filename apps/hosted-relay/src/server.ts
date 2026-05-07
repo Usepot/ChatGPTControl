@@ -2,6 +2,7 @@ import { createServer, type Server } from "node:http";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { createRequestId, type ToolName, type ToolRequest, TOOL_ROUTE_MAP, type ToolResponse } from "@portable-codex/shared";
 import type { ApiPrincipal, RelayConfig } from "./config.js";
+import { ImageArtifactStore } from "./artifacts.js";
 import { DeviceBroker } from "./deviceBroker.js";
 import { handleMcpHttpBody } from "./mcp.js";
 import { renderGptInstructions, renderOpenApiJson, renderOpenApiYaml } from "./openapi.js";
@@ -26,6 +27,7 @@ export async function startRelayServer(config: RelayConfig): Promise<RelayServer
   app.use(express.json({ limit: "1mb" }));
 
   const broker = new DeviceBroker(config.requestTimeoutMs, config.deviceTokens);
+  const artifacts = new ImageArtifactStore({ ttlMs: config.artifactTtlMs });
   for (const path of ["/openapi.actions.json", "/docs/openapi.actions.json"]) {
     app.get(path, (req, res) => {
       res.type("application/json").send(renderOpenApiJson(getPublicBaseUrl(req, config)));
@@ -41,6 +43,57 @@ export async function startRelayServer(config: RelayConfig): Promise<RelayServer
       res.type("text/markdown").send(renderGptInstructions());
     });
   }
+  app.get("/artifacts/:artifactId", async (req, res) => {
+    const lookup = artifacts.lookup(req.params.artifactId ?? "");
+    if (lookup.status === "missing") {
+      res.status(404).json({ status: "error", error: { code: "ARTIFACT_NOT_FOUND", message: "Artifact not found" } });
+      return;
+    }
+    if (lookup.status === "expired") {
+      res.status(410).json({ status: "error", error: { code: "ARTIFACT_EXPIRED", message: "Artifact expired" } });
+      return;
+    }
+
+    const response = await broker.dispatch({
+      tool: "view_image",
+      requestId: createRequestId(),
+      deviceId: lookup.record.deviceId,
+      workspaceRoot: lookup.record.workspaceRoot,
+      path: lookup.record.path,
+      maxBytes: getArtifactMaxBytes(config),
+    });
+
+    if (response.status !== "ok") {
+      res.status(502).json(response);
+      return;
+    }
+
+    const image = extractInlineImageBuffer(response.result);
+    if (image === undefined) {
+      res.status(502).json({
+        status: "error",
+        error: { code: "ARTIFACT_IMAGE_UNAVAILABLE", message: "Companion did not return image bytes for artifact" },
+      });
+      return;
+    }
+
+    const maxBytes = getArtifactMaxBytes(config);
+    if (image.buffer.byteLength > maxBytes) {
+      res.status(413).json({
+        status: "error",
+        error: { code: "ARTIFACT_TOO_LARGE", message: `Artifact is ${image.buffer.byteLength} bytes, which exceeds maxBytes=${maxBytes}` },
+      });
+      return;
+    }
+
+    res
+      .status(200)
+      .set("cache-control", "private, max-age=600")
+      .set("x-content-type-options", "nosniff")
+      .type(image.mimeType)
+      .send(image.buffer);
+  });
+
   app.use(authenticate(config.apiPrincipals));
 
   app.post("/mcp", async (req: AuthedRequest, res: Response) => {
@@ -49,6 +102,7 @@ export async function startRelayServer(config: RelayConfig): Promise<RelayServer
       principal: req.principal,
       publicBaseUrl: getPublicBaseUrl(req, config),
       dispatch: (request) => broker.dispatch(request),
+      registerImageArtifact: (input) => artifacts.register(input),
     });
 
     if (result.body === undefined) {
@@ -83,7 +137,7 @@ export async function startRelayServer(config: RelayConfig): Promise<RelayServer
       if (response.status === "error") {
         logToolHttpError(tool, request, response, route, req);
       }
-      res.status(httpStatus).json(createActionToolResponse(response));
+      res.status(httpStatus).json(createActionToolResponse(response, request, getPublicBaseUrl(req, config), artifacts));
     });
   }
 
@@ -117,23 +171,64 @@ export async function startRelayServer(config: RelayConfig): Promise<RelayServer
   };
 }
 
-function createActionToolResponse(response: ToolResponse): Record<string, unknown> {
+function createActionToolResponse(
+  response: ToolResponse,
+  request: ToolRequest,
+  publicBaseUrl: string,
+  artifacts: ImageArtifactStore,
+): Record<string, unknown> {
   const payload = JSON.parse(JSON.stringify(response)) as Record<string, unknown>;
   if (response.status !== "ok") {
     return payload;
   }
 
-  const image = extractActionImage(response.result);
-  if (image === undefined) {
-    return payload;
-  }
-
-  payload.result = sanitizeInlineImageData(response.result);
-  payload.actionImage = image;
+  payload.result = attachImageArtifactUrl(payload.result, request, publicBaseUrl, artifacts);
+  payload.result = sanitizeInlineImageData(payload.result);
   return payload;
 }
 
-function extractActionImage(value: unknown): Record<string, unknown> | undefined {
+function attachImageArtifactUrl(
+  value: unknown,
+  request: ToolRequest,
+  publicBaseUrl: string,
+  artifacts: ImageArtifactStore,
+): unknown {
+  if (!isRecord(value) || !isArtifactBackedImageTool(request.tool)) {
+    return value;
+  }
+
+  const path = typeof value.path === "string" && value.path.trim().length > 0
+    ? value.path
+    : "path" in request && typeof request.path === "string" && request.path.trim().length > 0
+      ? request.path
+      : undefined;
+  const mimeType = typeof value.mimeType === "string" ? value.mimeType : undefined;
+  if (path === undefined || mimeType === undefined || !mimeType.toLowerCase().startsWith("image/")) {
+    return value;
+  }
+
+  const record = artifacts.register({
+    path,
+    mimeType,
+    deviceId: "deviceId" in request ? request.deviceId : undefined,
+    workspaceRoot: "workspaceRoot" in request ? request.workspaceRoot : undefined,
+    bytes: typeof value.bytes === "number" ? value.bytes : undefined,
+  });
+
+  return {
+    ...value,
+    path,
+    artifactId: record.id,
+    imageUrl: `${publicBaseUrl}/artifacts/${record.id}`,
+    expiresAt: record.expiresAt,
+  };
+}
+
+function isArtifactBackedImageTool(tool: ToolName): boolean {
+  return tool === "view_image" || tool === "view_desktop";
+}
+
+function extractInlineImageBuffer(value: unknown): { mimeType: string; buffer: Buffer } | undefined {
   if (!isRecord(value)) {
     return undefined;
   }
@@ -158,12 +253,14 @@ function extractActionImage(value: unknown): Record<string, unknown> | undefined
   }
 
   return {
-    name: getActionImageName(value.path, mimeType),
-    mime_type: mimeType,
-    content,
-    bytes: typeof value.bytes === "number" ? value.bytes : undefined,
-    note: "Inline image bytes for GPT Actions. MCP clients receive this same payload as image content.",
+    mimeType,
+    buffer: Buffer.from(content, "base64"),
   };
+}
+
+function getArtifactMaxBytes(config: RelayConfig): number {
+  const maxBytes = config.artifactMaxBytes ?? 10_000_000;
+  return Number.isFinite(maxBytes) && maxBytes > 0 ? Math.trunc(maxBytes) : 10_000_000;
 }
 
 function sanitizeInlineImageData(value: unknown): unknown {
@@ -177,18 +274,12 @@ function sanitizeInlineImageData(value: unknown): unknown {
 
   const clone: Record<string, unknown> = {};
   const removeInlineImageFields = isInlineImageObject(value);
-  let removedImageData = false;
   for (const [key, item] of Object.entries(value)) {
     if (removeInlineImageFields && (key === "dataUrl" || key === "data" || key === "base64")) {
-      removedImageData = true;
       continue;
     }
 
     clone[key] = sanitizeInlineImageData(item);
-  }
-
-  if (removedImageData) {
-    clone.actionImageReturned = true;
   }
 
   return clone;
@@ -199,32 +290,6 @@ function isInlineImageObject(value: Record<string, unknown>): boolean {
   const hasImageMimeType = mimeType?.toLowerCase().startsWith("image/") === true;
   return typeof value.dataUrl === "string" ||
     (hasImageMimeType && (typeof value.data === "string" || typeof value.base64 === "string"));
-}
-
-function getActionImageName(path: unknown, mimeType: string): string {
-  if (typeof path === "string" && path.trim().length > 0) {
-    return path.split(/[\\/]/).filter(Boolean).at(-1) ?? "image";
-  }
-
-  return `image.${mimeTypeToExtension(mimeType)}`;
-}
-
-function mimeTypeToExtension(mimeType: string): string {
-  switch (mimeType.toLowerCase()) {
-    case "image/jpeg":
-      return "jpg";
-    case "image/gif":
-      return "gif";
-    case "image/webp":
-      return "webp";
-    case "image/bmp":
-      return "bmp";
-    case "image/svg+xml":
-      return "svg";
-    case "image/png":
-    default:
-      return "png";
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -250,7 +315,8 @@ function toolRequiresWorkspaceRoot(tool: ToolName): boolean {
     tool !== "list_skills" &&
     tool !== "get_skill" &&
     tool !== "write_stdin" &&
-    tool !== "request_permissions";
+    tool !== "request_permissions" &&
+    !tool.startsWith("browser_");
 }
 
 function authenticate(apiPrincipals: ApiPrincipal[]) {

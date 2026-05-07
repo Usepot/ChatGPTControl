@@ -135,6 +135,7 @@ The app will keep showing the next required step until the relay is connected an
 ## Tooling Notes
 
 - v1 exposes file tools, `run_command`, plus `list_trusted_workspaces` for workspace discovery over both MCP and the legacy REST Action API.
+- The MCP endpoint also exposes `web_search` as an MCP-only tool for current public web results when ChatGPT app mode disables built-in browsing. It is intentionally not part of the legacy Custom GPT Action/OpenAPI schema.
 - Reads, search, and stat run automatically inside trusted workspaces.
 - `run_command` plus Codex-compatible aliases (`shell`, `exec_command`, `shell_command`) provide the shell path for inspection, builds, and tests.
 - Shell tools accept Codex-style aliases such as `cmd` / `commandLine`, `workdir`, `working_directory`, `timeout_ms`, `max_output_bytes`, and one-shot `stdin` / `input`; `workdir` takes priority when multiple working-directory aliases are present.

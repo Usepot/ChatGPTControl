@@ -86,8 +86,8 @@
                 <ui:SymbolIcon DockPanel.Dock="Left" Symbol="Shield24" FontSize="18" Foreground="{DynamicResource AccentBrush}" Margin="0,0,10,0" VerticalAlignment="Center" />
                 <TextBlock Style="{StaticResource SectionTitle}" Text="Security" VerticalAlignment="Center" />
             </DockPanel>
-            <CheckBox FontSize="13" Foreground="{DynamicResource SecondaryFg}" IsChecked="{Binding RequireApprovalForWrites}"
-                      Content="Require approval for writes, patches, deletes, and commands" />
+            <CheckBox FontSize="13" Foreground="{DynamicResource SecondaryFg}" IsEnabled="False" IsChecked="False"
+                      Content="Approval prompts disabled for writes, patches, deletes, and commands" />
 
         </StackPanel>
     </ScrollViewer>

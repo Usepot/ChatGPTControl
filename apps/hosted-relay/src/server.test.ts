@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import WebSocket from "ws";
 import { TOOL_NAMES, TOOL_ROUTE_MAP, type ToolName } from "@portable-codex/shared";
+import { handleMcpHttpBody } from "./mcp.js";
 import { renderOpenApiJson } from "./openapi.js";
 import { startRelayServer, type RelayServer } from "./server.js";
 import type { RelayConfig } from "./config.js";
@@ -29,6 +30,18 @@ const WORKSPACE_ROOT_OPTIONAL_TOOLS = new Set<ToolName>([
   "get_skill",
   "write_stdin",
   "request_permissions",
+  "view_desktop",
+  "click_desktop",
+  "browser_get_state",
+  "browser_click",
+  "browser_fill",
+  "browser_keypress",
+  "browser_navigate",
+  "browser_back",
+  "browser_forward",
+  "browser_reload",
+  "browser_screenshot",
+  "browser_eval",
 ]);
 
 const WRITE_TOOLS = new Set<ToolName>([
@@ -39,7 +52,15 @@ const WRITE_TOOLS = new Set<ToolName>([
   "shell",
   "exec_command",
   "shell_command",
-  "screenshot_desktop",
+  "click_desktop",
+  "browser_click",
+  "browser_fill",
+  "browser_keypress",
+  "browser_navigate",
+  "browser_back",
+  "browser_forward",
+  "browser_reload",
+  "browser_eval",
 ]);
 
 const OPEN_WORLD_TOOLS = new Set<ToolName>([
@@ -47,7 +68,12 @@ const OPEN_WORLD_TOOLS = new Set<ToolName>([
   "shell",
   "exec_command",
   "shell_command",
+  "browser_navigate",
+  "browser_eval",
 ]);
+
+const MCP_ONLY_TOOL_NAMES = ["web_search"] as const;
+const ACTION_SCHEMA_OMITTED_TOOLS = new Set<ToolName>(["shell_command"]);
 
 function toolRequiresWorkspaceRoot(tool: ToolName): boolean {
   return !WORKSPACE_ROOT_OPTIONAL_TOOLS.has(tool);
@@ -154,8 +180,48 @@ function createToolBody(tool: ToolName): Record<string, unknown> {
       return { ...body, permissions: ["network"], reason: "test" };
     case "view_image":
       return { ...body, path: "screen.png", maxBytes: 2048 };
-    case "screenshot_desktop":
-      return { ...body, path: "screen.png", screen: "primary", maxBytes: 2048 };
+    case "view_desktop":
+      return { ...body, screen: "primary", maxBytes: 2048 };
+    case "click_desktop":
+      return { ...body, x: 42, y: 64, button: "left", clicks: 1 };
+    case "browser_get_state":
+      return {
+        ...body,
+        deviceId: "test-device",
+        includeHtml: true,
+        includeText: false,
+        maxHtmlBytes: 4096,
+        maxElements: 25,
+        redact: true,
+      };
+    case "browser_click":
+      return {
+        ...body,
+        deviceId: "test-device",
+        selector: "button[type='submit']",
+        text: "Submit",
+        x: 10,
+        y: 20,
+        button: "left",
+        clicks: 1,
+        scrollIntoView: true,
+        waitAfterMs: 0,
+      };
+    case "browser_fill":
+      return { ...body, deviceId: "test-device", selector: "input[name='q']", value: "hello", clear: true, submit: false };
+    case "browser_keypress":
+      return { ...body, deviceId: "test-device", selector: "input[name='q']", key: "Enter", shiftKey: false };
+    case "browser_navigate":
+      return { ...body, deviceId: "test-device", url: "https://example.test", newTab: false };
+    case "browser_back":
+    case "browser_forward":
+      return { ...body, deviceId: "test-device" };
+    case "browser_reload":
+      return { ...body, deviceId: "test-device", bypassCache: true };
+    case "browser_screenshot":
+      return { ...body, deviceId: "test-device", format: "png", quality: 90 };
+    case "browser_eval":
+      return { ...body, deviceId: "test-device", code: "return document.title;", args: [], allowUnsafeScript: true };
   }
 }
 
@@ -190,18 +256,21 @@ async function postAction(baseUrl: string, tool: ToolName, body: Record<string, 
   });
 }
 
-test("legacy Custom GPT Action schema advertises every shared tool route", () => {
+test("legacy Custom GPT Action schema stays within the 30 operation cap", () => {
   const openApi = JSON.parse(renderOpenApiJson("https://relay.example.test")) as {
     paths?: Record<string, { post?: Record<string, unknown> }>;
   };
   const paths = openApi.paths ?? {};
+  const operations = Object.values(paths).filter((path) => path.post !== undefined);
+
+  assert.ok(operations.length <= 30, `Action schema has ${operations.length} operations; maximum is 30`);
 
   assert.deepEqual(
     Object.keys(TOOL_ROUTE_MAP).sort(),
     [...TOOL_NAMES].sort(),
   );
 
-  for (const tool of TOOL_NAMES) {
+  for (const tool of TOOL_NAMES.filter((tool) => !ACTION_SCHEMA_OMITTED_TOOLS.has(tool))) {
     const route = TOOL_ROUTE_MAP[tool];
     const operation = paths[route]?.post;
     assert.ok(operation, `${tool} is missing OpenAPI path ${route}`);
@@ -214,6 +283,10 @@ test("legacy Custom GPT Action schema advertises every shared tool route", () =>
 
     const responses = operation.responses as Record<string, { content?: Record<string, unknown> }> | undefined;
     assert.ok(responses?.["200"]?.content?.["application/json"], `${tool} should return JSON`);
+  }
+
+  for (const tool of ACTION_SCHEMA_OMITTED_TOOLS) {
+    assert.equal(paths[TOOL_ROUTE_MAP[tool]], undefined, `${tool} should not be advertised in the Action schema`);
   }
 });
 
@@ -329,7 +402,7 @@ test("mcp tools/list advertises every registered tool with OpenAPI-derived input
     const json = (await response.json()) as {
       result?: {
         tools?: Array<{
-          name?: ToolName;
+          name?: string;
           inputSchema?: { type?: string; required?: string[]; properties?: Record<string, unknown> };
           securitySchemes?: Array<{ type?: string; scheme?: string }>;
           annotations?: {
@@ -350,7 +423,7 @@ test("mcp tools/list advertises every registered tool with OpenAPI-derived input
     const tools = json.result?.tools ?? [];
     assert.deepEqual(
       tools.map((tool) => tool.name).sort(),
-      [...TOOL_NAMES].sort(),
+      [...TOOL_NAMES, ...MCP_ONLY_TOOL_NAMES].sort(),
     );
 
     for (const toolName of TOOL_NAMES) {
@@ -379,8 +452,77 @@ test("mcp tools/list advertises every registered tool with OpenAPI-derived input
     const getSkill = tools.find((tool) => tool.name === "get_skill");
     assert.deepEqual(getSkill?.inputSchema?.required, ["skillName"]);
     assert.ok(getSkill?.inputSchema?.properties && "maxBytes" in getSkill.inputSchema.properties);
+
+    const webSearch = tools.find((tool) => tool.name === "web_search");
+    assert.deepEqual(webSearch?.inputSchema?.required, ["query"]);
+    assert.ok(webSearch?.inputSchema?.properties && "requestId" in webSearch.inputSchema.properties);
+    assert.ok(webSearch?.inputSchema?.properties && "query" in webSearch.inputSchema.properties);
+    assert.ok(webSearch?.inputSchema?.properties && "maxResults" in webSearch.inputSchema.properties);
+    assert.equal(webSearch?.annotations?.readOnlyHint, true);
+    assert.equal(webSearch?.annotations?.destructiveHint, false);
+    assert.equal(webSearch?.annotations?.openWorldHint, true);
+    assert.equal(webSearch?.annotations?.idempotentHint, true);
   } finally {
     await relay.stop();
+  }
+});
+
+test("mcp web_search is handled locally and does not dispatch to the companion", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = input instanceof Request ? input.url : String(input);
+    assert.match(url, /^https:\/\/html\.duckduckgo\.com\/html\//);
+    return new Response(
+      `<html><body>
+        <a class="result__a" href="/l/?uddg=https%3A%2F%2Fexample.com%2Fone">Example &amp; One</a>
+        <a class="result__snippet">First snippet &amp; context</a>
+        <a class="result__a" href="https://example.com/two">Example Two</a>
+        <div class="result__snippet">Second snippet</div>
+      </body></html>`,
+      { status: 200, headers: { "content-type": "text/html" } },
+    );
+  }) as typeof fetch;
+
+  try {
+    const result = await handleMcpHttpBody({
+      body: {
+        jsonrpc: "2.0",
+        id: "web-search-1",
+        method: "tools/call",
+        params: {
+          name: "web_search",
+          arguments: {
+            requestId: "web-req-1",
+            query: "portable codex",
+            maxResults: 2,
+          },
+        },
+      },
+      dispatch: async () => {
+        assert.fail("web_search should be handled by the MCP server, not dispatched to the companion");
+      },
+    });
+
+    assert.equal(result.httpStatus, 200);
+    const body = result.body as {
+      result?: {
+        isError?: boolean;
+        structuredContent?: {
+          status?: string;
+          result?: { query?: string; results?: Array<{ title?: string; url?: string; snippet?: string }> };
+        };
+      };
+    };
+    assert.equal(body.result?.isError, false);
+    assert.equal(body.result?.structuredContent?.status, "ok");
+    assert.equal(body.result?.structuredContent?.result?.query, "portable codex");
+    assert.deepEqual(body.result?.structuredContent?.result?.results?.[0], {
+      title: "Example & One",
+      url: "https://example.com/one",
+      snippet: "First snippet & context",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });
 
@@ -809,13 +951,16 @@ test("mcp tools/call returns local images as image content", async () => {
     const json = (await response.json()) as {
       result?: {
         content?: Array<{ type?: string; mimeType?: string; data?: string; text?: string }>;
-        structuredContent?: { result?: { dataUrl?: string; inlineImageReturned?: boolean } };
+        structuredContent?: { result?: { dataUrl?: string; inlineImageReturned?: boolean; artifactId?: string; imageUrl?: string; expiresAt?: string } };
       };
     };
     const image = json.result?.content?.find((item) => item.type === "image");
     assert.equal(image?.mimeType, "image/png");
     assert.equal(image?.data, "AAEC");
     assert.equal(json.result?.structuredContent?.result?.inlineImageReturned, true);
+    assert.match(json.result?.structuredContent?.result?.artifactId ?? "", /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    assert.match(json.result?.structuredContent?.result?.imageUrl ?? "", /^http:\/\/127\.0\.0\.1:8901\/artifacts\/[0-9a-f-]{36}$/i);
+    assert.ok(json.result?.structuredContent?.result?.expiresAt);
     assert.equal("dataUrl" in (json.result?.structuredContent?.result ?? {}), false);
   } finally {
     socket.close();
@@ -823,7 +968,91 @@ test("mcp tools/call returns local images as image content", async () => {
   }
 });
 
-test("action endpoint returns local images in actionImage", async () => {
+test("mcp tools/call preserves workspaceRoot for saved desktop screenshots", async () => {
+  const relay = await startRelayServer(createConfig(8903));
+  const socket = new WebSocket("ws://127.0.0.1:8903/ws/device");
+
+  try {
+    await once(socket, "open");
+    socket.send(
+      JSON.stringify({
+        type: "device:hello",
+        deviceId: "test-device",
+        deviceName: "Test Device",
+        token: "test-device-token",
+      }),
+    );
+
+    const messagePromise = once(socket, "message").then(([payload]) => JSON.parse(String(payload)));
+    const httpPromise = fetch("http://127.0.0.1:8903/mcp", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer test-api-token",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: "desktop-call-1",
+        method: "tools/call",
+        params: {
+          name: "view_desktop",
+          arguments: {
+            workspaceRoot: "/tmp/workspace",
+            path: "desktop/screen.png",
+            screen: "primary",
+          },
+        },
+      }),
+    });
+
+    const message = await messagePromise;
+    assert.equal(message.type, "tool:request");
+    assert.equal(message.request.tool, "view_desktop");
+    assert.equal(message.request.workspaceRoot, "/tmp/workspace");
+    assert.equal(message.request.path, "desktop/screen.png");
+
+    socket.send(
+      JSON.stringify({
+        type: "tool:response",
+        response: {
+          requestId: message.request.requestId,
+          status: "ok",
+          result: {
+            path: "desktop/screen.png",
+            screen: "primary",
+            width: 1,
+            height: 1,
+            mimeType: "image/png",
+            bytes: 3,
+            dataUrl: "data:image/png;base64,AAEC",
+          },
+        },
+      }),
+    );
+
+    const response = await httpPromise;
+    assert.equal(response.status, 200);
+    const json = (await response.json()) as {
+      result?: {
+        content?: Array<{ type?: string; mimeType?: string; data?: string }>;
+        structuredContent?: { result?: { dataUrl?: string; inlineImageReturned?: boolean; artifactId?: string; imageUrl?: string; expiresAt?: string } };
+      };
+    };
+    const image = json.result?.content?.find((item) => item.type === "image");
+    assert.equal(image?.mimeType, "image/png");
+    assert.equal(image?.data, "AAEC");
+    assert.equal(json.result?.structuredContent?.result?.inlineImageReturned, true);
+    assert.match(json.result?.structuredContent?.result?.artifactId ?? "", /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    assert.match(json.result?.structuredContent?.result?.imageUrl ?? "", /^http:\/\/127\.0\.0\.1:8903\/artifacts\/[0-9a-f-]{36}$/i);
+    assert.ok(json.result?.structuredContent?.result?.expiresAt);
+    assert.equal("dataUrl" in (json.result?.structuredContent?.result ?? {}), false);
+  } finally {
+    socket.close();
+    await relay.stop();
+  }
+});
+
+test("action endpoint returns local image artifact links without inline image payloads", async () => {
   const relay = await startRelayServer(createConfig(8902));
   const socket = new WebSocket("ws://127.0.0.1:8902/ws/device");
 
@@ -875,15 +1104,45 @@ test("action endpoint returns local images in actionImage", async () => {
     assert.equal(response.status, 200);
     const json = (await response.json()) as {
       status?: string;
-      result?: { dataUrl?: string; actionImageReturned?: boolean };
-      actionImage?: { name?: string; mime_type?: string; content?: string };
+      result?: { dataUrl?: string; artifactId?: string; imageUrl?: string; expiresAt?: string } & Record<string, unknown>;
     };
     assert.equal(json.status, "ok");
-    assert.equal(json.actionImage?.name, "screen.png");
-    assert.equal(json.actionImage?.mime_type, "image/png");
-    assert.equal(json.actionImage?.content, "AAEC");
-    assert.equal(json.result?.actionImageReturned, true);
+    assert.equal("actionImage" in json, false);
+    assert.equal("actionImageReturned" in (json.result ?? {}), false);
+    assert.match(json.result?.artifactId ?? "", /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    assert.match(json.result?.imageUrl ?? "", /^http:\/\/127\.0\.0\.1:8902\/artifacts\/[0-9a-f-]{36}$/i);
+    assert.ok(json.result?.expiresAt);
     assert.equal("dataUrl" in (json.result ?? {}), false);
+
+    const artifactMessagePromise = once(socket, "message").then(([payload]) => JSON.parse(String(payload)));
+    const artifactResponsePromise = fetch(json.result?.imageUrl ?? "");
+    const artifactMessage = await artifactMessagePromise;
+    assert.equal(artifactMessage.type, "tool:request");
+    assert.equal(artifactMessage.request.tool, "view_image");
+    assert.equal(artifactMessage.request.deviceId, "test-device");
+    assert.equal(artifactMessage.request.workspaceRoot, "/tmp/workspace");
+    assert.equal(artifactMessage.request.path, "screen.png");
+
+    socket.send(
+      JSON.stringify({
+        type: "tool:response",
+        response: {
+          requestId: artifactMessage.request.requestId,
+          status: "ok",
+          result: {
+            path: "screen.png",
+            mimeType: "image/png",
+            bytes: 3,
+            dataUrl: "data:image/png;base64,AAEC",
+          },
+        },
+      }),
+    );
+
+    const artifactResponse = await artifactResponsePromise;
+    assert.equal(artifactResponse.status, 200);
+    assert.match(artifactResponse.headers.get("content-type") ?? "", /^image\/png/);
+    assert.deepEqual(new Uint8Array(await artifactResponse.arrayBuffer()), new Uint8Array([0, 1, 2]));
   } finally {
     socket.close();
     await relay.stop();

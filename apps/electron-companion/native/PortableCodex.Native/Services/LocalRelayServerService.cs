@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -12,10 +13,14 @@ namespace PortableCodex.Native.Services;
 
 public sealed class LocalRelayServerService
 {
+    private const int ArtifactMaxBytes = 10_000_000;
+    private static readonly TimeSpan ArtifactTtl = TimeSpan.FromMinutes(10);
+
     private readonly Action<LocalRelayStatus> _onStatusChanged;
     private readonly Action<ToolRequest, ToolResponse>? _onRelayTerminalResult;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly RelayContentService _relayContentService = new();
+    private readonly ConcurrentDictionary<string, ImageArtifactRecord> _artifacts = new(StringComparer.OrdinalIgnoreCase);
 
     private WebApplication? _app;
     private DeviceBroker? _broker;
@@ -107,6 +112,106 @@ public sealed class LocalRelayServerService
                         await context.Response.WriteAsync(RelayContentService.GptInstructions);
                     });
             }
+
+            app.MapGet(
+                "/artifacts/{artifactId}",
+                async context =>
+                {
+                    var artifactId = context.Request.RouteValues["artifactId"]?.ToString() ?? string.Empty;
+                    PruneExpiredArtifacts();
+                    if (!_artifacts.TryGetValue(artifactId, out var artifact))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status404NotFound;
+                        await context.Response.WriteAsJsonAsync(
+                            new
+                            {
+                                status = "error",
+                                error = new
+                                {
+                                    code = "ARTIFACT_NOT_FOUND",
+                                    message = "Artifact not found",
+                                },
+                            },
+                            JsonDefaults.Transport);
+                        return;
+                    }
+
+                    if (artifact.ExpiresAt <= DateTimeOffset.UtcNow)
+                    {
+                        _artifacts.TryRemove(artifactId, out _);
+                        context.Response.StatusCode = StatusCodes.Status410Gone;
+                        await context.Response.WriteAsJsonAsync(
+                            new
+                            {
+                                status = "error",
+                                error = new
+                                {
+                                    code = "ARTIFACT_EXPIRED",
+                                    message = "Artifact expired",
+                                },
+                            },
+                            JsonDefaults.Transport);
+                        return;
+                    }
+
+                    var response = await broker.DispatchAsync(
+                        new ToolRequest
+                        {
+                            RequestId = Guid.NewGuid().ToString(),
+                            DeviceId = artifact.DeviceId,
+                            WorkspaceRoot = artifact.WorkspaceRoot,
+                            Tool = "view_image",
+                            Path = artifact.Path,
+                            MaxBytes = ArtifactMaxBytes,
+                        },
+                        context.RequestAborted);
+
+                    if (!string.Equals(response.Status, "ok", StringComparison.Ordinal))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status502BadGateway;
+                        await context.Response.WriteAsJsonAsync(response, JsonDefaults.Transport);
+                        return;
+                    }
+
+                    if (!TryExtractImageBuffer(response.Result, out var mimeType, out var bytes))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status502BadGateway;
+                        await context.Response.WriteAsJsonAsync(
+                            new
+                            {
+                                status = "error",
+                                error = new
+                                {
+                                    code = "ARTIFACT_IMAGE_UNAVAILABLE",
+                                    message = "Companion did not return image bytes for artifact",
+                                },
+                            },
+                            JsonDefaults.Transport);
+                        return;
+                    }
+
+                    if (bytes.Length > ArtifactMaxBytes)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                        await context.Response.WriteAsJsonAsync(
+                            new
+                            {
+                                status = "error",
+                                error = new
+                                {
+                                    code = "ARTIFACT_TOO_LARGE",
+                                    message = $"Artifact is {bytes.Length} bytes, which exceeds maxBytes={ArtifactMaxBytes}",
+                                },
+                            },
+                            JsonDefaults.Transport);
+                        return;
+                    }
+
+                    context.Response.Headers.CacheControl = "private, max-age=600";
+                    context.Response.Headers.XContentTypeOptions = "nosniff";
+                    context.Response.ContentType = mimeType;
+                    await context.Response.Body.WriteAsync(bytes, context.RequestAborted);
+                });
 
             app.MapPost(
                 "/mcp",
@@ -208,7 +313,9 @@ public sealed class LocalRelayServerService
                         context.Response.StatusCode = string.Equals(response.Status, "error", StringComparison.Ordinal)
                             ? StatusCodes.Status400BadRequest
                             : StatusCodes.Status200OK;
-                        await context.Response.WriteAsJsonAsync(CreateActionToolResponse(response), JsonDefaults.Transport);
+                        await context.Response.WriteAsJsonAsync(
+                            CreateActionToolResponse(response, request, GetPublicBaseUrl(context.Request)),
+                            JsonDefaults.Transport);
                     });
             }
 
@@ -451,32 +558,86 @@ public sealed class LocalRelayServerService
                !string.Equals(tool, "list_skills", StringComparison.Ordinal) &&
                !string.Equals(tool, "get_skill", StringComparison.Ordinal) &&
                !string.Equals(tool, "write_stdin", StringComparison.Ordinal) &&
-               !string.Equals(tool, "request_permissions", StringComparison.Ordinal);
+               !string.Equals(tool, "request_permissions", StringComparison.Ordinal) &&
+               !string.Equals(tool, "click_desktop", StringComparison.Ordinal);
     }
 
-    private static JsonObject CreateActionToolResponse(ToolResponse response)
+    private JsonObject CreateActionToolResponse(ToolResponse response, ToolRequest request, string publicBaseUrl)
     {
         var payload = JsonSerializer.SerializeToNode(response, JsonDefaults.Transport) as JsonObject ?? new JsonObject();
-        if (!string.Equals(response.Status, "ok", StringComparison.Ordinal) ||
-            !TryCreateActionImage(response.Result, out var actionImage))
+        if (string.Equals(response.Status, "ok", StringComparison.Ordinal))
         {
-            return payload;
+            payload["result"] = AttachImageArtifactUrl(payload["result"], request, publicBaseUrl);
+            payload["result"] = SanitizeInlineImageData(payload["result"]);
         }
 
-        payload["result"] = SanitizeInlineImageData(response.Result);
-        payload["actionImage"] = actionImage;
         return payload;
     }
 
-    private static bool TryCreateActionImage(JsonNode? result, out JsonObject actionImage)
+    private JsonNode? AttachImageArtifactUrl(JsonNode? node, ToolRequest request, string publicBaseUrl)
     {
-        actionImage = new JsonObject();
+        if (node is not JsonObject obj || !IsArtifactBackedImageTool(request.Tool))
+        {
+            return node;
+        }
+
+        var path = GetString(obj, "path") ?? request.Path;
+        var mimeType = GetString(obj, "mimeType");
+        if (string.IsNullOrWhiteSpace(path) ||
+            string.IsNullOrWhiteSpace(mimeType) ||
+            !mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return node;
+        }
+
+        PruneExpiredArtifacts();
+        var id = Guid.NewGuid().ToString();
+        var expiresAt = DateTimeOffset.UtcNow.Add(ArtifactTtl);
+        _artifacts[id] = new ImageArtifactRecord(
+            id,
+            request.DeviceId,
+            request.WorkspaceRoot,
+            path,
+            mimeType,
+            TryGetLong(obj, "bytes"),
+            expiresAt);
+
+        obj["path"] = path;
+        obj["artifactId"] = id;
+        obj["imageUrl"] = $"{publicBaseUrl}/artifacts/{id}";
+        obj["expiresAt"] = expiresAt.ToString("O");
+        return obj;
+    }
+
+    private void PruneExpiredArtifacts()
+    {
+        var now = DateTimeOffset.UtcNow;
+        foreach (var (id, artifact) in _artifacts)
+        {
+            if (artifact.ExpiresAt <= now)
+            {
+                _artifacts.TryRemove(id, out _);
+            }
+        }
+    }
+
+    private static bool IsArtifactBackedImageTool(string tool)
+    {
+        return string.Equals(tool, "view_image", StringComparison.Ordinal) ||
+               string.Equals(tool, "view_desktop", StringComparison.Ordinal) ||
+               string.Equals(tool, "screenshot_desktop", StringComparison.Ordinal);
+    }
+
+    private static bool TryExtractImageBuffer(JsonNode? result, out string mimeType, out byte[] bytes)
+    {
+        mimeType = string.Empty;
+        bytes = [];
         if (result is not JsonObject obj)
         {
             return false;
         }
 
-        var mimeType = GetString(obj, "mimeType");
+        mimeType = GetString(obj, "mimeType") ?? string.Empty;
         var content = GetString(obj, "data") ?? GetString(obj, "base64");
         var dataUrl = GetString(obj, "dataUrl");
         if (!string.IsNullOrWhiteSpace(dataUrl))
@@ -496,15 +657,15 @@ public sealed class LocalRelayServerService
             return false;
         }
 
-        actionImage = new JsonObject
+        try
         {
-            ["name"] = GetActionImageName(GetString(obj, "path"), mimeType),
-            ["mime_type"] = mimeType,
-            ["content"] = content,
-            ["bytes"] = TryGetLong(obj, "bytes"),
-            ["note"] = "Inline image bytes for GPT Actions. MCP clients receive this same payload as image content.",
-        };
-        return true;
+            bytes = Convert.FromBase64String(content);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static (string MimeType, string Content)? TryParseDataUrl(string value)
@@ -548,7 +709,6 @@ public sealed class LocalRelayServerService
             {
                 var clone = new JsonObject();
                 var removeInlineImageFields = IsInlineImageObject(obj);
-                var removedImageData = false;
                 foreach (var (key, value) in obj)
                 {
                     if (removeInlineImageFields &&
@@ -556,16 +716,10 @@ public sealed class LocalRelayServerService
                          string.Equals(key, "data", StringComparison.Ordinal) ||
                          string.Equals(key, "base64", StringComparison.Ordinal)))
                     {
-                        removedImageData = true;
                         continue;
                     }
 
                     clone[key] = SanitizeInlineImageData(value);
-                }
-
-                if (removedImageData)
-                {
-                    clone["actionImageReturned"] = true;
                 }
 
                 return clone;
@@ -609,29 +763,6 @@ public sealed class LocalRelayServerService
         }
     }
 
-    private static string GetActionImageName(string? path, string mimeType)
-    {
-        if (!string.IsNullOrWhiteSpace(path))
-        {
-            return Path.GetFileName(path);
-        }
-
-        return $"image.{MimeTypeToExtension(mimeType)}";
-    }
-
-    private static string MimeTypeToExtension(string mimeType)
-    {
-        return mimeType.ToLowerInvariant() switch
-        {
-            "image/jpeg" => "jpg",
-            "image/gif" => "gif",
-            "image/webp" => "webp",
-            "image/bmp" => "bmp",
-            "image/svg+xml" => "svg",
-            _ => "png",
-        };
-    }
-
     private static string GetPublicBaseUrl(HttpRequest request)
     {
         var forwardedProto = request.Headers["x-forwarded-proto"].FirstOrDefault()?.Split(',')[0].Trim();
@@ -650,4 +781,13 @@ public sealed class LocalRelayServerService
         _status = status;
         _onStatusChanged(status);
     }
+
+    private sealed record ImageArtifactRecord(
+        string Id,
+        string? DeviceId,
+        string? WorkspaceRoot,
+        string Path,
+        string MimeType,
+        long? Bytes,
+        DateTimeOffset ExpiresAt);
 }

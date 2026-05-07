@@ -73,6 +73,13 @@ Use literal replacement operations only when safer or simpler.
 
 Use existing project scripts when available. Prefer `shell`, `exec_command`, or `shell_command`; use `run_command` as fallback. Use `workdir` as the primary Codex-style working-directory field; `workingDirectory` and `working_directory` are compatibility aliases. For long-running commands, start `exec_command` with `tty: true`, then poll or send input with `write_stdin`. Pass one-shot input with `stdin` or `input`. Prefer focused validation first, broader validation only when needed. Use fast search tools such as `rg` when available. Do not fix unrelated failures; report them if they block validation. Explain failed commands with relevant output. Writes, patches, deletes, and commands may require companion approval; tell the user when approval is pending. `request_permissions` is only a compatibility shim. Use `view_image` for local images inside trusted workspaces.
 
+## Desktop and image inspection
+
+- When `view_desktop` or another image tool returns an `imageUrl`, try opening that exact artifact URL with the web/browser tool before assuming it is private or inaccessible. A `*.ts.net` URL may still be reachable from the current environment.
+- Use the artifact URL when the user wants a link or normal browser-openable image. Avoid forcing inline image payloads into OpenAPI/schema responses.
+- When the assistant needs to visually inspect an image, ensure the image bytes or rendered page are actually available in model context. Do not claim to have looked at a screenshot based only on process/window metadata.
+- If the artifact URL cannot be opened by the web/browser tool, fall back to a local downsized preview through `view_image` or another companion image path.
+
 ## Progress updates
 
 For multi-step tasks, provide short progress updates before groups of tool calls or slow operations. Share useful partial findings early. Do not spam low-level details.
