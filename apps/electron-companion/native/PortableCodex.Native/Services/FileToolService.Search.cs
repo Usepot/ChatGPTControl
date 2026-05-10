@@ -341,8 +341,12 @@ public sealed partial class FileToolService
 
         if (request.FileExtensions is { Count: > 0 })
         {
-            var extension = Path.GetExtension(currentPath);
-            if (!request.FileExtensions.Contains(extension))
+            var extension = Path.GetExtension(currentPath).TrimStart('.');
+            if (!request.FileExtensions.Any(requestedExtension =>
+                    string.Equals(
+                        requestedExtension.TrimStart('.'),
+                        extension,
+                        StringComparison.OrdinalIgnoreCase)))
             {
                 return;
             }

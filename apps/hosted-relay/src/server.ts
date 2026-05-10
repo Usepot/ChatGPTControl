@@ -22,12 +22,19 @@ export interface RelayServer {
   stop(): Promise<void>;
 }
 
+const IMAGE_ENDPOINT_RATE_LIMIT_MAX_REQUESTS = 120;
+const IMAGE_ENDPOINT_RATE_LIMIT_WINDOW_MS = 60_000;
+
 export async function startRelayServer(config: RelayConfig): Promise<RelayServer> {
   const app = express();
   app.use(express.json({ limit: "1mb" }));
 
   const broker = new DeviceBroker(config.requestTimeoutMs, config.deviceTokens);
   const artifacts = new ImageArtifactStore({ ttlMs: config.artifactTtlMs });
+  const imageEndpointRateLimiter = createFixedWindowRateLimiter({
+    maxRequests: IMAGE_ENDPOINT_RATE_LIMIT_MAX_REQUESTS,
+    windowMs: IMAGE_ENDPOINT_RATE_LIMIT_WINDOW_MS,
+  });
   for (const path of ["/openapi.actions.json", "/docs/openapi.actions.json"]) {
     app.get(path, (req, res) => {
       res.type("application/json").send(renderOpenApiJson(getPublicBaseUrl(req, config)));
@@ -44,6 +51,19 @@ export async function startRelayServer(config: RelayConfig): Promise<RelayServer
     });
   }
   app.get("/artifacts/:artifactId", async (req, res) => {
+    const rateLimit = imageEndpointRateLimiter.check(getClientRateLimitKey(req));
+    setRateLimitHeaders(res, rateLimit);
+    if (!rateLimit.allowed) {
+      res.status(429).json({
+        status: "error",
+        error: {
+          code: "IMAGE_ENDPOINT_RATE_LIMITED",
+          message: `Image endpoint rate limit exceeded; try again in ${Math.ceil(rateLimit.retryAfterMs / 1000)} seconds`,
+        },
+      });
+      return;
+    }
+
     const lookup = artifacts.lookup(req.params.artifactId ?? "");
     if (lookup.status === "missing") {
       res.status(404).json({ status: "error", error: { code: "ARTIFACT_NOT_FOUND", message: "Artifact not found" } });
@@ -169,6 +189,63 @@ export async function startRelayServer(config: RelayConfig): Promise<RelayServer
         httpServer.close((error) => (error ? reject(error) : resolve()));
       }),
   };
+}
+
+interface RateLimitState {
+  count: number;
+  resetAt: number;
+}
+
+interface RateLimitResult {
+  allowed: boolean;
+  limit: number;
+  remaining: number;
+  resetAt: number;
+  retryAfterMs: number;
+}
+
+function createFixedWindowRateLimiter(options: { maxRequests: number; windowMs: number }) {
+  const states = new Map<string, RateLimitState>();
+
+  return {
+    check(key: string, now = Date.now()): RateLimitResult {
+      const existing = states.get(key);
+      const state = existing === undefined || existing.resetAt <= now
+        ? { count: 0, resetAt: now + options.windowMs }
+        : existing;
+
+      state.count += 1;
+      states.set(key, state);
+
+      for (const [stateKey, value] of states) {
+        if (value.resetAt <= now) {
+          states.delete(stateKey);
+        }
+      }
+
+      const retryAfterMs = Math.max(0, state.resetAt - now);
+      return {
+        allowed: state.count <= options.maxRequests,
+        limit: options.maxRequests,
+        remaining: Math.max(0, options.maxRequests - state.count),
+        resetAt: state.resetAt,
+        retryAfterMs,
+      };
+    },
+  };
+}
+
+function getClientRateLimitKey(req: Request): string {
+  return req.ip || req.socket.remoteAddress || "unknown";
+}
+
+function setRateLimitHeaders(res: Response, rateLimit: RateLimitResult): void {
+  res.set("x-ratelimit-limit", String(rateLimit.limit));
+  res.set("x-ratelimit-remaining", String(rateLimit.remaining));
+  res.set("x-ratelimit-reset", String(Math.ceil(rateLimit.resetAt / 1000)));
+  if (!rateLimit.allowed) {
+    res.set("retry-after", String(Math.ceil(rateLimit.retryAfterMs / 1000)));
+  }
 }
 
 function createActionToolResponse(

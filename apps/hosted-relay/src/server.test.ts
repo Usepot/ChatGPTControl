@@ -44,34 +44,6 @@ const WORKSPACE_ROOT_OPTIONAL_TOOLS = new Set<ToolName>([
   "browser_eval",
 ]);
 
-const WRITE_TOOLS = new Set<ToolName>([
-  "write_file",
-  "apply_patch",
-  "delete_path",
-  "run_command",
-  "shell",
-  "exec_command",
-  "shell_command",
-  "click_desktop",
-  "browser_click",
-  "browser_fill",
-  "browser_keypress",
-  "browser_navigate",
-  "browser_back",
-  "browser_forward",
-  "browser_reload",
-  "browser_eval",
-]);
-
-const OPEN_WORLD_TOOLS = new Set<ToolName>([
-  "run_command",
-  "shell",
-  "exec_command",
-  "shell_command",
-  "browser_navigate",
-  "browser_eval",
-]);
-
 const MCP_ONLY_TOOL_NAMES = ["web_search"] as const;
 const ACTION_SCHEMA_OMITTED_TOOLS = new Set<ToolName>(["shell_command"]);
 
@@ -416,6 +388,7 @@ test("mcp tools/list advertises every registered tool with OpenAPI-derived input
             securitySchemes?: Array<{ type?: string; scheme?: string }>;
             "openai/outputTemplate"?: string;
             "openai/widgetAccessible"?: boolean;
+            "openai/visibility"?: string;
           };
         }>;
       };
@@ -435,13 +408,14 @@ test("mcp tools/list advertises every registered tool with OpenAPI-derived input
       assert.deepEqual(descriptor.securitySchemes, [{ type: "http", scheme: "bearer" }]);
       assert.deepEqual(descriptor._meta?.securitySchemes, [{ type: "http", scheme: "bearer" }]);
       assert.equal(descriptor._meta?.ui?.resourceUri, "ui://portable-codex/workspaces-v1.html");
-      assert.deepEqual(descriptor._meta?.ui?.visibility, ["model", "app"]);
+      assert.deepEqual(descriptor._meta?.ui?.visibility, ["model"]);
       assert.equal(descriptor._meta?.["openai/outputTemplate"], "ui://portable-codex/workspaces-v1.html");
-      assert.equal(descriptor._meta?.["openai/widgetAccessible"], true);
-      assert.equal(descriptor.annotations?.readOnlyHint, !WRITE_TOOLS.has(toolName));
-      assert.equal(descriptor.annotations?.destructiveHint, WRITE_TOOLS.has(toolName));
-      assert.equal(descriptor.annotations?.openWorldHint, OPEN_WORLD_TOOLS.has(toolName));
-      assert.equal(descriptor.annotations?.idempotentHint, !WRITE_TOOLS.has(toolName));
+      assert.equal(descriptor._meta?.["openai/widgetAccessible"], false);
+      assert.equal(descriptor._meta?.["openai/visibility"], "private");
+      assert.equal(descriptor.annotations?.readOnlyHint, true);
+      assert.equal(descriptor.annotations?.destructiveHint, false);
+      assert.equal(descriptor.annotations?.openWorldHint, false);
+      assert.equal(descriptor.annotations?.idempotentHint, true);
     }
 
     const readFile = tools.find((tool) => tool.name === "read_file");
@@ -460,8 +434,11 @@ test("mcp tools/list advertises every registered tool with OpenAPI-derived input
     assert.ok(webSearch?.inputSchema?.properties && "maxResults" in webSearch.inputSchema.properties);
     assert.equal(webSearch?.annotations?.readOnlyHint, true);
     assert.equal(webSearch?.annotations?.destructiveHint, false);
-    assert.equal(webSearch?.annotations?.openWorldHint, true);
+    assert.equal(webSearch?.annotations?.openWorldHint, false);
     assert.equal(webSearch?.annotations?.idempotentHint, true);
+    assert.deepEqual(webSearch?._meta?.ui?.visibility, ["model"]);
+    assert.equal(webSearch?._meta?.["openai/widgetAccessible"], false);
+    assert.equal(webSearch?._meta?.["openai/visibility"], "private");
   } finally {
     await relay.stop();
   }
@@ -870,6 +847,7 @@ test("mcp endpoint initializes and lists Portable Codex tools", async () => {
             securitySchemes?: Array<{ type?: string; scheme?: string }>;
             "openai/outputTemplate"?: string;
             "openai/widgetAccessible"?: boolean;
+            "openai/visibility"?: string;
           };
         }>;
       };
@@ -878,8 +856,9 @@ test("mcp endpoint initializes and lists Portable Codex tools", async () => {
     assert.equal(listTrustedWorkspaces?.inputSchema?.type, "object");
     assert.equal(listTrustedWorkspaces?._meta?.ui?.resourceUri, "ui://portable-codex/workspaces-v1.html");
     assert.equal(listTrustedWorkspaces?._meta?.["openai/outputTemplate"], "ui://portable-codex/workspaces-v1.html");
-    assert.equal(listTrustedWorkspaces?._meta?.["openai/widgetAccessible"], true);
-    assert.deepEqual(listTrustedWorkspaces?._meta?.ui?.visibility, ["model", "app"]);
+    assert.equal(listTrustedWorkspaces?._meta?.["openai/widgetAccessible"], false);
+    assert.equal(listTrustedWorkspaces?._meta?.["openai/visibility"], "private");
+    assert.deepEqual(listTrustedWorkspaces?._meta?.ui?.visibility, ["model"]);
     assert.deepEqual(listTrustedWorkspaces?.securitySchemes, [{ type: "http", scheme: "bearer" }]);
     assert.deepEqual(listTrustedWorkspaces?._meta?.securitySchemes, [{ type: "http", scheme: "bearer" }]);
     assert.equal(listTrustedWorkspaces?.annotations?.readOnlyHint, true);
@@ -1145,6 +1124,31 @@ test("action endpoint returns local image artifact links without inline image pa
     assert.deepEqual(new Uint8Array(await artifactResponse.arrayBuffer()), new Uint8Array([0, 1, 2]));
   } finally {
     socket.close();
+    await relay.stop();
+  }
+});
+
+test("image artifact endpoint rate limits requests after 120 per minute", async () => {
+  const relay = await startRelayServer(createConfig(0));
+  const baseUrl = getRelayBaseUrl(relay);
+
+  try {
+    for (let index = 0; index < 120; index += 1) {
+      const response = await fetch(`${baseUrl}/artifacts/missing-${index}`);
+      assert.equal(response.status, 404);
+      assert.equal(response.headers.get("x-ratelimit-limit"), "120");
+    }
+
+    const response = await fetch(`${baseUrl}/artifacts/missing-over-limit`);
+    assert.equal(response.status, 429);
+    assert.equal(response.headers.get("x-ratelimit-limit"), "120");
+    assert.equal(response.headers.get("x-ratelimit-remaining"), "0");
+    assert.ok(response.headers.get("retry-after"));
+
+    const json = (await response.json()) as { status?: string; error?: { code?: string } };
+    assert.equal(json.status, "error");
+    assert.equal(json.error?.code, "IMAGE_ENDPOINT_RATE_LIMITED");
+  } finally {
     await relay.stop();
   }
 });

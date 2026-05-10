@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -23,8 +24,13 @@ public sealed partial class FileToolService
 
         public static CommandSpec FromShellLine(string? command)
         {
-            return string.IsNullOrWhiteSpace(command)
-                ? Empty
+            if (string.IsNullOrWhiteSpace(command))
+            {
+                return Empty;
+            }
+
+            return TryParseDirectPowerShellCommand(command, out var argv)
+                ? FromArgv(argv)
                 : new CommandSpec(command, null);
         }
 
@@ -39,6 +45,66 @@ public sealed partial class FileToolService
                 ? $"\"{value.Replace("\"", "\\\"")}" + "\""
                 : value;
         }
+
+        private static bool TryParseDirectPowerShellCommand(string command, out IReadOnlyList<string> argv)
+        {
+            argv = Array.Empty<string>();
+            if (!OperatingSystem.IsWindows())
+            {
+                return false;
+            }
+
+            var parsed = SplitWindowsCommandLine(command);
+            if (parsed.Count == 0)
+            {
+                return false;
+            }
+
+            var executable = Path.GetFileName(parsed[0]);
+            if (!string.Equals(executable, "powershell", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(executable, "powershell.exe", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(executable, "pwsh", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(executable, "pwsh.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            argv = parsed;
+            return true;
+        }
+
+        private static IReadOnlyList<string> SplitWindowsCommandLine(string command)
+        {
+            var argvPtr = CommandLineToArgvW(command, out var argc);
+            if (argvPtr == IntPtr.Zero)
+            {
+                return Array.Empty<string>();
+            }
+
+            try
+            {
+                var argv = new string[argc];
+                for (var i = 0; i < argc; i++)
+                {
+                    var argPtr = Marshal.ReadIntPtr(argvPtr, i * IntPtr.Size);
+                    argv[i] = Marshal.PtrToStringUni(argPtr) ?? string.Empty;
+                }
+
+                return argv;
+            }
+            finally
+            {
+                LocalFree(argvPtr);
+            }
+        }
+
+        [DllImport("shell32.dll", SetLastError = true)]
+        private static extern IntPtr CommandLineToArgvW(
+            [MarshalAs(UnmanagedType.LPWStr)] string lpCmdLine,
+            out int pNumArgs);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr LocalFree(IntPtr hMem);
     }
 
     private sealed class ShellSession : IDisposable

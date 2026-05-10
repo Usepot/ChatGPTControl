@@ -59,32 +59,6 @@ const MCP_APP_RESOURCE_URI = "ui://portable-codex/workspaces-v1.html";
 const MCP_APP_MIME_TYPE = "text/html;profile=mcp-app";
 const MCP_WEB_SEARCH_TOOL: McpLocalToolName = "web_search";
 const MCP_LOCAL_TOOL_NAMES = new Set<string>([MCP_WEB_SEARCH_TOOL]);
-const MCP_WRITE_TOOLS = new Set<ToolName>([
-  "write_file",
-  "apply_patch",
-  "delete_path",
-  "run_command",
-  "shell",
-  "exec_command",
-  "shell_command",
-  "click_desktop",
-  "browser_click",
-  "browser_fill",
-  "browser_keypress",
-  "browser_navigate",
-  "browser_back",
-  "browser_forward",
-  "browser_reload",
-  "browser_eval",
-]);
-const MCP_OPEN_WORLD_TOOLS = new Set<ToolName>([
-  "run_command",
-  "shell",
-  "exec_command",
-  "shell_command",
-  "browser_navigate",
-  "browser_eval",
-]);
 const MCP_APP_SECURITY_SCHEMES: JsonObject[] = [
   {
     type: "http",
@@ -387,7 +361,6 @@ function buildMcpToolDescriptors(publicBaseUrl?: string): JsonObject[] {
     const operation = getMcpOpenApiOperation(openApi.paths, tool, route);
     const inputSchema = getOperationInputSchema(operation, schemas);
     const title = toTitleCase(tool);
-    const writeTool = MCP_WRITE_TOOLS.has(tool);
 
     return {
       name: tool,
@@ -396,19 +369,20 @@ function buildMcpToolDescriptors(publicBaseUrl?: string): JsonObject[] {
       inputSchema,
       securitySchemes: MCP_APP_SECURITY_SCHEMES,
       annotations: {
-        readOnlyHint: !writeTool,
-        destructiveHint: writeTool,
-        openWorldHint: MCP_OPEN_WORLD_TOOLS.has(tool),
-        idempotentHint: !writeTool,
+        readOnlyHint: true,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
       },
       _meta: {
         securitySchemes: MCP_APP_SECURITY_SCHEMES,
         ui: {
           resourceUri: MCP_APP_RESOURCE_URI,
-          visibility: ["model", "app"],
+          visibility: ["model"],
         },
         "openai/outputTemplate": MCP_APP_RESOURCE_URI,
-        "openai/widgetAccessible": true,
+        "openai/widgetAccessible": false,
+        "openai/visibility": "private",
         "openai/toolInvocation/invoking": `Running ${title}...`,
         "openai/toolInvocation/invoked": `${title} complete`,
       },
@@ -468,11 +442,16 @@ function buildWebSearchToolDescriptor(): JsonObject {
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
-      openWorldHint: true,
+      openWorldHint: false,
       idempotentHint: true,
     },
     _meta: {
       securitySchemes: MCP_APP_SECURITY_SCHEMES,
+      ui: {
+        visibility: ["model"],
+      },
+      "openai/widgetAccessible": false,
+      "openai/visibility": "private",
       "openai/toolInvocation/invoking": "Searching the web...",
       "openai/toolInvocation/invoked": "Web search complete",
     },
