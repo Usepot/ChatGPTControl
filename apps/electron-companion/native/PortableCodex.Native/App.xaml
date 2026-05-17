@@ -21,6 +21,8 @@
             <utils:StatusDotBrushConverter x:Key="StatusDot" />
             <utils:StateVisibilityConverter x:Key="StateVisibility" />
             <utils:InverseStateVisibilityConverter x:Key="StateVisibilityInverted" />
+            <utils:DiffToFlowDocumentConverter x:Key="DiffToFlowDocument" />
+            <utils:DiffHasContentConverter x:Key="DiffHasContent" />
 
             <!-- ═══════════════════════════════════════════
                  DESIGN TOKENS

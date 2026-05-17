@@ -2,40 +2,121 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
-    <Grid>
+    <Grid Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <DockPanel Grid.Row="0" Margin="36,28,36,0">
-            <ui:Button DockPanel.Dock="Left" Appearance="Transparent" Margin="0,0,16,0" FontSize="12" Content="← Back" Command="{Binding ReturnToDashboardCommand}" />
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                <ui:Button Appearance="Transparent" FontSize="12" Margin="0,0,6,0" Content="Copy" Command="{Binding CopyDiffCommand}" />
-                <ui:Button Appearance="Primary" FontSize="12" Content="Refresh" Command="{Binding RefreshDiffCommand}" />
+        <!-- ── Header ── -->
+        <DockPanel Grid.Row="0" Margin="28,24,28,18">
+            <ui:Button DockPanel.Dock="Left" Appearance="Transparent" Margin="0,2,14,0" FontSize="12"
+                       VerticalAlignment="Top" Content="← Back" Command="{Binding ReturnToDashboardCommand}" />
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Bottom">
+                <ui:Button Appearance="Transparent" FontSize="12" Margin="0,0,6,0" Padding="10,6"
+                           Content="Copy" Command="{Binding CopyDiffCommand}" />
+                <ui:Button Appearance="Primary" FontSize="12" Padding="14,6"
+                           Content="Refresh diff" Command="{Binding RefreshDiffCommand}" />
             </StackPanel>
             <StackPanel>
                 <TextBlock FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}" Text="Diff Viewer" />
-                <TextBlock FontSize="12" Foreground="{DynamicResource TertiaryFg}" Margin="0,4,0,0" Text="Inspect workspace changes." />
+                <TextBlock FontSize="12" Foreground="{DynamicResource TertiaryFg}" Margin="0,4,0,0"
+                           Text="Inspect uncommitted changes in the current workspace." />
             </StackPanel>
         </DockPanel>
 
-        <!-- Toolbar -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="36,16,36,12">
-            <TextBlock FontSize="12" Foreground="{DynamicResource MutedFg}" VerticalAlignment="Center" Margin="0,0,6,0" Text="Mode" />
-            <ComboBox Width="140" FontSize="12" ItemsSource="{Binding DiffModes}" SelectedItem="{Binding DiffMode}" Margin="0,0,16,0" />
-            <TextBlock FontSize="12" Foreground="{DynamicResource MutedFg}" VerticalAlignment="Center" Margin="0,0,6,0" Text="Turns" />
-            <ComboBox Width="70" FontSize="12" ItemsSource="{Binding DiffTurnCounts}" SelectedItem="{Binding DiffTurnCount}" />
-            <TextBlock FontSize="12" Foreground="{DynamicResource TertiaryFg}" VerticalAlignment="Center" Margin="16,0,0,0" Text="{Binding DiffStatus}" />
-        </StackPanel>
+        <!-- ── Toolbar card ── -->
+        <Border Grid.Row="1" Margin="28,0,28,14" Style="{StaticResource CardBorder}" Padding="14,10">
+            <DockPanel LastChildFill="True">
+                <!-- Status pill on the right -->
+                <Border DockPanel.Dock="Right" VerticalAlignment="Center"
+                        Background="{DynamicResource CardMutedBg}"
+                        BorderBrush="{DynamicResource SubtleBorder}"
+                        BorderThickness="1" CornerRadius="4" Padding="10,4">
+                    <DockPanel>
+                        <Border DockPanel.Dock="Left" Width="6" Height="6" CornerRadius="3" Margin="0,0,8,0"
+                                VerticalAlignment="Center" Background="{DynamicResource AccentBrush}" />
+                        <TextBlock FontSize="11" Foreground="{DynamicResource SecondaryFg}"
+                                   VerticalAlignment="Center" Text="{Binding DiffStatus}" TextTrimming="CharacterEllipsis" />
+                    </DockPanel>
+                </Border>
 
-        <!-- Diff output -->
-        <Border Grid.Row="2" Margin="36,0,36,28" Background="{DynamicResource CodeBg}" CornerRadius="6" BorderBrush="{DynamicResource SoftBorder}" BorderThickness="1">
-            <TextBox Style="{StaticResource CodeBox}" Background="Transparent" BorderThickness="0"
-                     HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                     Text="{Binding DiffText, Mode=OneWay}" />
+                <!-- Mode + Turns controls -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource SectionLabel}" VerticalAlignment="Center" Margin="0,0,8,0" Text="MODE" />
+                    <ComboBox Width="140" FontSize="12" ItemsSource="{Binding DiffModes}" SelectedItem="{Binding DiffMode}" Margin="0,0,18,0" />
+                    <TextBlock Style="{StaticResource SectionLabel}" VerticalAlignment="Center" Margin="0,0,8,0" Text="TURNS" />
+                    <ComboBox Width="74" FontSize="12" ItemsSource="{Binding DiffTurnCounts}" SelectedItem="{Binding DiffTurnCount}" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ── Diff panel ── -->
+        <Border Grid.Row="2" Margin="28,0,28,24" Style="{StaticResource CardBorder}" Padding="0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Panel header (file-tab style) -->
+                <Border Grid.Row="0" Padding="14,9" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center">
+                            <ui:SymbolIcon Symbol="DocumentBulletList20" FontSize="14" Foreground="{DynamicResource AccentBrush}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource SecondaryFg}" VerticalAlignment="Center" Text="Workspace diff" />
+                        </StackPanel>
+                        <TextBlock DockPanel.Dock="Right" FontSize="10" FontFamily="Cascadia Code, Consolas"
+                                   Foreground="{DynamicResource TertiaryFg}" VerticalAlignment="Center"
+                                   Text="{Binding DiffMode, StringFormat=mode: {0}}" />
+                    </DockPanel>
+                </Border>
+
+                <!-- Empty state -->
+                <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="320">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DiffText, Converter={StaticResource DiffHasContent}}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <ui:SymbolIcon Symbol="DocumentSearch24" FontSize="40" Foreground="{DynamicResource TertiaryFg}"
+                                   HorizontalAlignment="Center" Margin="0,0,0,14" />
+                    <TextBlock FontSize="14" FontWeight="Medium" Foreground="{DynamicResource SecondaryFg}"
+                               TextAlignment="Center" HorizontalAlignment="Center" Text="Nothing to show yet" />
+                    <TextBlock FontSize="12" Foreground="{DynamicResource TertiaryFg}" TextAlignment="Center"
+                               HorizontalAlignment="Center" Margin="0,6,0,16" TextWrapping="Wrap"
+                               Text="{Binding DiffText, Mode=OneWay}" />
+                    <ui:Button HorizontalAlignment="Center" Appearance="Primary" FontSize="12" Padding="14,6"
+                               Content="Refresh diff" Command="{Binding RefreshDiffCommand}" />
+                </StackPanel>
+
+                <!-- Diff body -->
+                <Border Grid.Row="1" Background="{DynamicResource CodeBg}" CornerRadius="0,0,6,6">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding DiffText, Converter={StaticResource DiffHasContent}}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <FlowDocumentScrollViewer Margin="6,8,6,8"
+                                              Document="{Binding DiffText, Converter={StaticResource DiffToFlowDocument}, Mode=OneWay}"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Auto"
+                                              IsToolBarVisible="False"
+                                              Background="Transparent"
+                                              Foreground="{DynamicResource CodeFg}" />
+                </Border>
+            </Grid>
         </Border>
     </Grid>
 </UserControl>
