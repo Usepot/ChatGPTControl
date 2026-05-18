@@ -18,7 +18,7 @@
 
             <!-- ── MCP flow ── -->
             <StackPanel Visibility="{Binding IsMcpIntegrationSelected, Converter={StaticResource BoolToVis}}">
-                <Border Background="{DynamicResource WarningSubtleBg}" CornerRadius="6" Padding="14,10" Margin="0,0,0,24">
+                <Border Background="{DynamicResource WarningSubtleBg}" CornerRadius="0" Padding="14,10" Margin="0,0,0,24">
                     <TextBlock Text="Beta integration — use Custom GPT Action unless you need Pro model access." FontSize="12" Foreground="{DynamicResource WarningSubtleFg}" TextWrapping="Wrap" />
                 </Border>
 

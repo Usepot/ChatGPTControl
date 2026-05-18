@@ -20,7 +20,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- GPT Action card -->
-                <Border Grid.Column="0" CornerRadius="6" Padding="20,18" Cursor="Hand">
+                <Border Grid.Column="0" CornerRadius="0" Padding="20,18" Cursor="Hand">
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Background" Value="{DynamicResource CardBg}" />
@@ -46,7 +46,7 @@
                 </Border>
 
                 <!-- MCP card -->
-                <Border Grid.Column="2" CornerRadius="6" Padding="20,18" Cursor="Hand">
+                <Border Grid.Column="2" CornerRadius="0" Padding="20,18" Cursor="Hand">
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Background" Value="{DynamicResource CardBg}" />

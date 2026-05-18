@@ -11,74 +11,115 @@
             <TextBlock Style="{StaticResource PageSubheading}" Margin="0,8,0,40"
                        Text="We'll connect your machine to ChatGPT via a local relay and Tailscale Funnel." />
 
-            <!-- ── Status Section ── -->
-            <TextBlock Text="STATUS" Style="{StaticResource SectionLabel}" Margin="0,0,0,16" />
+            <!-- ── Status timeline ── -->
+            <TextBlock Text="STATUS" Style="{StaticResource SectionLabel}" Margin="0,0,0,18" />
 
-            <!-- Credentials row -->
-            <DockPanel Margin="0,0,0,0">
-                <Border DockPanel.Dock="Left" Width="8" Height="8" CornerRadius="4" Margin="0,6,14,0" VerticalAlignment="Top"
-                        Background="{Binding CredentialsReady, Converter={StaticResource StatusDot}, ConverterParameter=ready}" />
-                <StackPanel>
-                    <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}">
-                        <TextBlock.Style><Style TargetType="TextBlock">
-                            <Setter Property="Text" Value="Generating credentials…" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding CredentialsReady}" Value="True">
-                                    <Setter Property="Text" Value="Credentials ready" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style></TextBlock.Style>
-                    </TextBlock>
-                    <TextBlock FontSize="11" FontFamily="Cascadia Code, Consolas" Foreground="{DynamicResource TertiaryFg}" Margin="0,3,0,0" Text="{Binding DeviceId}" />
-                </StackPanel>
-            </DockPanel>
+            <Grid Margin="0,0,0,28">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="30" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-            <Border Style="{StaticResource Divider}" Margin="0,12" />
+                    <!-- Connecting rails -->
+                    <Rectangle Grid.Column="0" Grid.Row="0" Width="2" RadiusX="1" RadiusY="1"
+                               HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,26,0,-2">
+                        <Rectangle.Style>
+                            <Style TargetType="Rectangle">
+                                <Setter Property="Fill" Value="{DynamicResource WarningSubtleFg}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CredentialsReady}" Value="True">
+                                        <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Rectangle.Style>
+                    </Rectangle>
+                    <Rectangle Grid.Column="0" Grid.Row="1" Width="2" RadiusX="1" RadiusY="1"
+                               HorizontalAlignment="Center" VerticalAlignment="Stretch" Margin="0,26,0,-2"
+                               Fill="{Binding LocalRelayState, Converter={StaticResource StatusDot}}" />
 
-            <!-- Relay row -->
-            <DockPanel Margin="0,0,0,0">
-                <Border DockPanel.Dock="Left" Width="8" Height="8" CornerRadius="4" Margin="0,6,14,0" VerticalAlignment="Top"
-                        Background="{Binding LocalRelayState, Converter={StaticResource StatusDot}}" />
-                <StackPanel>
-                    <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}">
-                        <TextBlock.Style><Style TargetType="TextBlock">
-                            <Setter Property="Text" Value="Starting local relay…" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding RelayReady}" Value="True">
-                                    <Setter Property="Text" Value="Local relay running" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style></TextBlock.Style>
-                    </TextBlock>
-                    <TextBlock FontSize="11" Foreground="{DynamicResource TertiaryFg}" Margin="0,3,0,0" Text="{Binding LocalRelayMessage}" />
-                </StackPanel>
-            </DockPanel>
+                    <!-- Stage 1: Credentials -->
+                    <Grid Grid.Column="0" Grid.Row="0" Width="26" Height="26" VerticalAlignment="Top">
+                        <Ellipse Fill="{DynamicResource CardMutedBg}" Stroke="{DynamicResource SubtleBorder}" StrokeThickness="1" />
+                        <Ellipse x:Name="Cred" Width="10" Height="10">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{DynamicResource WarningSubtleFg}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CredentialsReady}" Value="True">
+                                            <Setter Property="Fill" Value="{DynamicResource SuccessBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <ui:SymbolIcon x:Name="CredCheck" Symbol="Checkmark20" FontSize="13" Foreground="{DynamicResource SuccessBrush}"
+                                       Visibility="{Binding CredentialsReady, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+                    <StackPanel Grid.Column="1" Grid.Row="0" Margin="14,0,0,28">
+                        <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}">
+                            <TextBlock.Style><Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="Generating credentials…" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CredentialsReady}" Value="True">
+                                        <Setter Property="Text" Value="Credentials ready" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style></TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock FontSize="11" FontFamily="Cascadia Code, Consolas" Foreground="{DynamicResource TertiaryFg}" Margin="0,4,0,0" Text="{Binding DeviceId}" />
+                    </StackPanel>
 
-            <Border Style="{StaticResource Divider}" Margin="0,12" />
+                    <!-- Stage 2: Local relay -->
+                    <Grid Grid.Column="0" Grid.Row="1" Width="26" Height="26" VerticalAlignment="Top">
+                        <Ellipse Fill="{DynamicResource CardMutedBg}" Stroke="{DynamicResource SubtleBorder}" StrokeThickness="1" />
+                        <Ellipse Width="10" Height="10" Fill="{Binding LocalRelayState, Converter={StaticResource StatusDot}}" />
+                        <ui:SymbolIcon Symbol="Checkmark20" FontSize="13" Foreground="{DynamicResource SuccessBrush}"
+                                       Visibility="{Binding RelayReady, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+                    <StackPanel Grid.Column="1" Grid.Row="1" Margin="14,0,0,28">
+                        <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}">
+                            <TextBlock.Style><Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="Starting local relay…" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding RelayReady}" Value="True">
+                                        <Setter Property="Text" Value="Local relay running" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style></TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock FontSize="11.5" Foreground="{DynamicResource TertiaryFg}" Margin="0,4,0,0" Text="{Binding LocalRelayMessage}" TextWrapping="Wrap" />
+                    </StackPanel>
 
-            <!-- Funnel row -->
-            <DockPanel Margin="0,0,0,0">
-                <Border DockPanel.Dock="Left" Width="8" Height="8" CornerRadius="4" Margin="0,6,14,0" VerticalAlignment="Top"
-                        Background="{Binding TunnelState, Converter={StaticResource StatusDot}}" />
-                <StackPanel>
-                    <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}">
-                        <TextBlock.Style><Style TargetType="TextBlock">
-                            <Setter Property="Text" Value="Waiting to connect…" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding TunnelReady}" Value="True"><Setter Property="Text" Value="Connected to ChatGPT" /></DataTrigger>
-                                <DataTrigger Binding="{Binding TunnelState}" Value="starting"><Setter Property="Text" Value="Configuring Tailscale Funnel…" /></DataTrigger>
-                                <DataTrigger Binding="{Binding TunnelState}" Value="not_found"><Setter Property="Text" Value="Install Tailscale" /></DataTrigger>
-                                <DataTrigger Binding="{Binding TunnelState}" Value="login_required"><Setter Property="Text" Value="Sign in to Tailscale" /></DataTrigger>
-                                <DataTrigger Binding="{Binding TunnelState}" Value="approval_required"><Setter Property="Text" Value="Approve Funnel access" /></DataTrigger>
-                                <DataTrigger Binding="{Binding TunnelState}" Value="error"><Setter Property="Text" Value="Funnel error" /></DataTrigger>
-                            </Style.Triggers>
-                        </Style></TextBlock.Style>
-                    </TextBlock>
-                    <TextBlock FontSize="11" Foreground="{DynamicResource TertiaryFg}" Margin="0,3,0,0" Text="{Binding TunnelMessage}" TextWrapping="Wrap" />
-                </StackPanel>
-            </DockPanel>
-
-            <Border Style="{StaticResource Divider}" Margin="0,20" />
+                    <!-- Stage 3: Funnel -->
+                    <Grid Grid.Column="0" Grid.Row="2" Width="26" Height="26" VerticalAlignment="Top">
+                        <Ellipse Fill="{DynamicResource CardMutedBg}" Stroke="{DynamicResource SubtleBorder}" StrokeThickness="1" />
+                        <Ellipse Width="10" Height="10" Fill="{Binding TunnelState, Converter={StaticResource StatusDot}}" />
+                        <ui:SymbolIcon Symbol="Checkmark20" FontSize="13" Foreground="{DynamicResource SuccessBrush}"
+                                       Visibility="{Binding TunnelReady, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+                    <StackPanel Grid.Column="1" Grid.Row="2" Margin="14,0,0,0">
+                        <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}">
+                            <TextBlock.Style><Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="Waiting to connect…" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding TunnelReady}" Value="True"><Setter Property="Text" Value="Connected to ChatGPT" /></DataTrigger>
+                                    <DataTrigger Binding="{Binding TunnelState}" Value="starting"><Setter Property="Text" Value="Configuring Tailscale Funnel…" /></DataTrigger>
+                                    <DataTrigger Binding="{Binding TunnelState}" Value="not_found"><Setter Property="Text" Value="Install Tailscale" /></DataTrigger>
+                                    <DataTrigger Binding="{Binding TunnelState}" Value="login_required"><Setter Property="Text" Value="Sign in to Tailscale" /></DataTrigger>
+                                    <DataTrigger Binding="{Binding TunnelState}" Value="approval_required"><Setter Property="Text" Value="Approve Funnel access" /></DataTrigger>
+                                    <DataTrigger Binding="{Binding TunnelState}" Value="error"><Setter Property="Text" Value="Funnel error" /></DataTrigger>
+                                </Style.Triggers>
+                            </Style></TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock FontSize="11.5" Foreground="{DynamicResource TertiaryFg}" Margin="0,4,0,0" Text="{Binding TunnelMessage}" TextWrapping="Wrap" />
+                    </StackPanel>
+            </Grid>
 
             <!-- ── Tailscale Connection ── -->
             <StackPanel Margin="0,0,0,0">

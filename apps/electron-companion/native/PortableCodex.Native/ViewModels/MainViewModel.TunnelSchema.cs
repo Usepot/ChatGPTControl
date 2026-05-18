@@ -55,6 +55,7 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(IsLegacyIntegrationSelected));
         OnPropertyChanged(nameof(StepCreateLabel));
         OnPropertyChanged(nameof(StepConfigureLabel));
+        RefreshWizardSteps();
         OnPropertyChanged(nameof(IntegrationModeTitle));
         OnPropertyChanged(nameof(IntegrationModeSummary));
         NotifySchemaChanged();

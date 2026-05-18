@@ -195,6 +195,7 @@ public sealed partial class MainViewModel : ObservableObject
         };
 
         LoadState();
+        RefreshWizardSteps();
     }
 
     #region Collections
@@ -249,6 +250,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             if (SetProperty(ref _currentStep, value))
             {
+                RefreshWizardSteps();
                 OnPropertyChanged(nameof(CanGoNext));
                 OnPropertyChanged(nameof(CanGoBack));
                 OnPropertyChanged(nameof(NextButtonText));

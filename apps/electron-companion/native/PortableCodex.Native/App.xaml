@@ -25,103 +25,121 @@
             <utils:DiffHasContentConverter x:Key="DiffHasContent" />
 
             <!-- ═══════════════════════════════════════════
-                 DESIGN TOKENS
-                 All backgrounds are white-alpha to let Mica
-                 show through. No opaque dark backgrounds.
+                 DESIGN TOKENS  (opaque modern dark)
+                 The runtime source of truth is ApplyTheme()
+                 in MainViewModel.Theme.cs — it overwrites
+                 these at startup for the active light/dark
+                 palette. Keep the two in sync; the values
+                 below are the dark defaults for design time.
                  ═══════════════════════════════════════════ -->
 
-            <!-- Accent -->
-            <SolidColorBrush x:Key="AccentBrush"          Color="#7C3AED" />
-            <SolidColorBrush x:Key="AccentHoverBrush"      Color="#8B5CF6" />
-            <SolidColorBrush x:Key="AccentSubtleBg"        Color="#187C3AED" />
-            <SolidColorBrush x:Key="SuccessBrush"          Color="#10B981" />
-            <SolidColorBrush x:Key="ErrorBrush"            Color="#F43F5E" />
+            <!-- Accent — single violet, no competing hue -->
+            <SolidColorBrush x:Key="AccentBrush"          Color="#8B5CF6" />
+            <SolidColorBrush x:Key="AccentHoverBrush"      Color="#A78BFA" />
+            <SolidColorBrush x:Key="AccentPressedBrush"    Color="#7C3AED" />
+            <SolidColorBrush x:Key="AccentSubtleBg"        Color="#2A2440" />
+            <SolidColorBrush x:Key="OnAccentFg"            Color="#FFFFFF" />
+            <SolidColorBrush x:Key="SuccessBrush"          Color="#34D399" />
+            <SolidColorBrush x:Key="ErrorBrush"            Color="#FB7185" />
 
-            <!-- Surfaces — translucent layers over Mica -->
-            <SolidColorBrush x:Key="AppBg"                 Color="Transparent" />
-            <SolidColorBrush x:Key="PanelBg"               Color="#08FFFFFF" />
-            <SolidColorBrush x:Key="CardBg"                Color="#0EFFFFFF" />
-            <SolidColorBrush x:Key="CardMutedBg"           Color="#08FFFFFF" />
-            <SolidColorBrush x:Key="ElevatedBg"            Color="#14FFFFFF" />
-            <SolidColorBrush x:Key="HoverBg"               Color="#12FFFFFF" />
-            <SolidColorBrush x:Key="SelectedBg"            Color="#187C3AED" />
-            <SolidColorBrush x:Key="SelectedBorder"        Color="#407C3AED" />
-            <SolidColorBrush x:Key="SurfaceBg"             Color="Transparent" />
+            <!-- Surfaces — opaque neutral zinc, layered by elevation -->
+            <SolidColorBrush x:Key="AppBg"                 Color="#0B0B0D" />
+            <SolidColorBrush x:Key="PanelBg"               Color="#121214" />
+            <SolidColorBrush x:Key="CardBg"                Color="#161618" />
+            <SolidColorBrush x:Key="CardMutedBg"           Color="#1C1C1F" />
+            <SolidColorBrush x:Key="ElevatedBg"            Color="#202023" />
+            <SolidColorBrush x:Key="HoverBg"               Color="#232327" />
+            <SolidColorBrush x:Key="SelectedBg"            Color="#241E33" />
+            <SolidColorBrush x:Key="SelectedBorder"        Color="#4C3A7A" />
+            <SolidColorBrush x:Key="SurfaceBg"             Color="#0B0B0D" />
 
-            <!-- Text -->
-            <SolidColorBrush x:Key="PrimaryFg"             Color="#FFFFFF" />
-            <SolidColorBrush x:Key="SecondaryFg"           Color="#BBBBBB" />
-            <SolidColorBrush x:Key="MutedFg"               Color="#888888" />
-            <SolidColorBrush x:Key="TertiaryFg"            Color="#666666" />
+            <!-- Text — stepped contrast, all legible on dark -->
+            <SolidColorBrush x:Key="PrimaryFg"             Color="#FAFAFA" />
+            <SolidColorBrush x:Key="SecondaryFg"           Color="#C8C8CC" />
+            <SolidColorBrush x:Key="MutedFg"               Color="#9A9AA2" />
+            <SolidColorBrush x:Key="TertiaryFg"            Color="#74747C" />
 
             <!-- Borders — hairline -->
-            <SolidColorBrush x:Key="SubtleBorder"          Color="#12FFFFFF" />
-            <SolidColorBrush x:Key="SoftBorder"            Color="#0AFFFFFF" />
-            <SolidColorBrush x:Key="DividerBrush"          Color="#0CFFFFFF" />
+            <SolidColorBrush x:Key="SubtleBorder"          Color="#2A2A2E" />
+            <SolidColorBrush x:Key="SoftBorder"            Color="#1F1F22" />
+            <SolidColorBrush x:Key="DividerBrush"          Color="#232327" />
 
             <!-- Code -->
-            <SolidColorBrush x:Key="CodeBg"                Color="#0AFFFFFF" />
-            <SolidColorBrush x:Key="CodeFg"                Color="#D4D4D4" />
+            <SolidColorBrush x:Key="CodeBg"                Color="#0E0E10" />
+            <SolidColorBrush x:Key="CodeFg"                Color="#D4D4D8" />
 
-            <!-- Semantic states — transparent tints -->
-            <SolidColorBrush x:Key="SuccessSubtleBg"       Color="#1410B981" />
-            <SolidColorBrush x:Key="SuccessSubtleBorder"   Color="#2810B981" />
+            <!-- Semantic states — opaque tints -->
+            <SolidColorBrush x:Key="SuccessSubtleBg"       Color="#14271F" />
+            <SolidColorBrush x:Key="SuccessSubtleBorder"   Color="#1F4D3A" />
             <SolidColorBrush x:Key="SuccessSubtleFg"       Color="#6EE7B7" />
-            <SolidColorBrush x:Key="PendingSubtleBg"       Color="#0CFFFFFF" />
-            <SolidColorBrush x:Key="WarningSubtleBg"       Color="#14F59E0B" />
-            <SolidColorBrush x:Key="WarningSubtleBorder"   Color="#28F59E0B" />
-            <SolidColorBrush x:Key="WarningSubtleFg"       Color="#FDE68A" />
-            <SolidColorBrush x:Key="ErrorSubtleBg"         Color="#14F43F5E" />
-            <SolidColorBrush x:Key="ErrorSubtleBorder"     Color="#28F43F5E" />
+            <SolidColorBrush x:Key="PendingSubtleBg"       Color="#1C1C1F" />
+            <SolidColorBrush x:Key="WarningSubtleBg"       Color="#2A2113" />
+            <SolidColorBrush x:Key="WarningSubtleBorder"   Color="#4D3B14" />
+            <SolidColorBrush x:Key="WarningSubtleFg"       Color="#FCD34D" />
+            <SolidColorBrush x:Key="ErrorSubtleBg"         Color="#2A1620" />
+            <SolidColorBrush x:Key="ErrorSubtleBorder"     Color="#4D2230" />
             <SolidColorBrush x:Key="ErrorSubtleFg"         Color="#FDA4AF" />
 
             <!-- Step indicator -->
-            <SolidColorBrush x:Key="StepActiveBg"          Color="#7C3AED" />
-            <SolidColorBrush x:Key="StepCompleteBg"        Color="#10B981" />
-            <SolidColorBrush x:Key="StepInactiveBg"        Color="#20FFFFFF" />
-            <SolidColorBrush x:Key="StepLineActive"        Color="#7C3AED" />
-            <SolidColorBrush x:Key="StepLineInactive"      Color="#15FFFFFF" />
+            <SolidColorBrush x:Key="StepActiveBg"          Color="#8B5CF6" />
+            <SolidColorBrush x:Key="StepCompleteBg"        Color="#34D399" />
+            <SolidColorBrush x:Key="StepInactiveBg"        Color="#2E2E33" />
+            <SolidColorBrush x:Key="StepLineActive"        Color="#8B5CF6" />
+            <SolidColorBrush x:Key="StepLineInactive"      Color="#2A2A2E" />
 
             <!-- ═══════════════════════════════════════════
                  TYPOGRAPHY
                  ═══════════════════════════════════════════ -->
 
             <Style x:Key="PageHeading" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="28" />
-                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="FontSize" Value="32" />
+                <Setter Property="FontWeight" Value="Bold" />
                 <Setter Property="Foreground" Value="{DynamicResource PrimaryFg}" />
             </Style>
 
             <Style x:Key="PageSubheading" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="14" />
+                <Setter Property="FontSize" Value="15" />
                 <Setter Property="Foreground" Value="{DynamicResource MutedFg}" />
                 <Setter Property="TextWrapping" Value="Wrap" />
-                <Setter Property="LineHeight" Value="22" />
+                <Setter Property="LineHeight" Value="24" />
             </Style>
 
             <Style x:Key="SectionLabel" TargetType="TextBlock">
                 <Setter Property="FontSize" Value="11" />
-                <Setter Property="FontWeight" Value="Medium" />
+                <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="Foreground" Value="{DynamicResource TertiaryFg}" />
             </Style>
 
             <Style x:Key="SectionTitle" TargetType="TextBlock">
-                <Setter Property="FontSize" Value="16" />
+                <Setter Property="FontSize" Value="17" />
                 <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="Foreground" Value="{DynamicResource PrimaryFg}" />
+            </Style>
+
+            <Style x:Key="BodyText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="Foreground" Value="{DynamicResource SecondaryFg}" />
+                <Setter Property="TextWrapping" Value="Wrap" />
+                <Setter Property="LineHeight" Value="20" />
+            </Style>
+
+            <Style x:Key="CaptionText" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="11.5" />
+                <Setter Property="Foreground" Value="{DynamicResource TertiaryFg}" />
             </Style>
 
             <!-- ═══════════════════════════════════════════
                  COMPONENT STYLES
                  ═══════════════════════════════════════════ -->
 
-            <!-- Panel — the primary grouping container. Subtle bg, no shadow. -->
+            <!-- Flat grouping container — no fill, no border, no rounding.
+                 Kept as a zero-chrome wrapper so existing layouts that
+                 reference it stay structurally intact. -->
             <Style x:Key="CardBorder" TargetType="Border">
-                <Setter Property="Background" Value="{DynamicResource CardBg}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource SoftBorder}" />
-                <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="CornerRadius" Value="6" />
-                <Setter Property="Padding" Value="20,18" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="CornerRadius" Value="0" />
+                <Setter Property="Padding" Value="0" />
                 <Setter Property="SnapsToDevicePixels" Value="True" />
             </Style>
 
@@ -154,7 +172,7 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="ChipShell" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="7" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <Border x:Name="ChipShell" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="0" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
                                 <DockPanel LastChildFill="True">
                                     <Border DockPanel.Dock="Left" Width="4" Height="4" CornerRadius="2" Background="{DynamicResource AccentBrush}" Opacity="0.75" Margin="0,0,6,0" VerticalAlignment="Center" />
                                     <ContentPresenter Content="{TemplateBinding Content}" VerticalAlignment="Center" RecognizesAccessKey="True" />
@@ -189,7 +207,7 @@
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="RemoveShell" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <Border x:Name="RemoveShell" Background="{TemplateBinding Background}" CornerRadius="0">
                                 <TextBlock Text="×" FontSize="12" FontWeight="SemiBold" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" LineHeight="12" />
                             </Border>
                             <ControlTemplate.Triggers>
