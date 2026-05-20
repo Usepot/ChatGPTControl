@@ -9,7 +9,8 @@
         FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif"
         WindowStartupLocation="CenterScreen"
         ExtendsContentIntoTitleBar="True"
-        WindowBackdropType="Mica">
+        WindowBackdropType="None"
+        Background="{DynamicResource AppBg}">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -18,7 +19,7 @@
         </Grid.RowDefinitions>
 
         <!-- ─── Title Bar ─── -->
-        <ui:TitleBar Grid.Row="0" Title="Portable Codex" ShowMaximize="True" ShowMinimize="True" ShowClose="True">
+        <ui:TitleBar Grid.Row="0" Title="Portable Codex" Background="{DynamicResource AppBg}" ShowMaximize="True" ShowMinimize="True" ShowClose="True">
             <ui:TitleBar.Header>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
                     <Border Width="6" Height="6" CornerRadius="3" Margin="0,0,6,0" VerticalAlignment="Center"
@@ -32,7 +33,7 @@
         </ui:TitleBar>
 
         <!-- ─── Content Shell ─── -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="1" Background="{DynamicResource AppBg}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -48,6 +49,7 @@
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding CurrentStep}" Value="4"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
                             <DataTrigger Binding="{Binding CurrentStep}" Value="5"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
+                            <DataTrigger Binding="{Binding CurrentStep}" Value="6"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger>
                         </Style.Triggers>
                     </Style>
                 </Border.Style>
@@ -124,6 +126,7 @@
                 <views:WorkspacesView Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=3}" />
                 <views:DashboardView Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=4}" />
                 <views:DiffViewerView Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=5}" />
+                <views:ChatGptView Visibility="{Binding CurrentStep, Converter={StaticResource StepVisibility}, ConverterParameter=6}" />
             </Grid>
 
             <!-- ─── Wizard bottom nav ─── -->

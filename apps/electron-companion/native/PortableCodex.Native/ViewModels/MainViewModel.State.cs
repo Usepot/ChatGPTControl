@@ -71,6 +71,8 @@ public sealed partial class MainViewModel
                 _currentWorkspace = string.Empty;
             }
 
+            LoadChatGptProjectsFromSettings(settings.ChatGptProjects ?? []);
+
             ActivityLogs.Clear();
             foreach (var log in loaded.Logs.Take(MaxLogEntries))
             {
@@ -131,6 +133,7 @@ public sealed partial class MainViewModel
             RequireApprovalForWrites = false,
             MultithreadedFileSearches = MultithreadedFileSearches,
             IsDarkMode = IsDarkMode,
+            ChatGptProjects = ChatGptProjects.Select(p => p.ToModel()).ToList(),
         };
     }
 

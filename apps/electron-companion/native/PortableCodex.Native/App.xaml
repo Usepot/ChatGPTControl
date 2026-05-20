@@ -25,7 +25,7 @@
             <utils:DiffHasContentConverter x:Key="DiffHasContent" />
 
             <!-- ═══════════════════════════════════════════
-                 DESIGN TOKENS  (opaque modern dark)
+                 DESIGN TOKENS  (diff-viewer charcoal dark)
                  The runtime source of truth is ApplyTheme()
                  in MainViewModel.Theme.cs — it overwrites
                  these at startup for the active light/dark
@@ -33,59 +33,59 @@
                  below are the dark defaults for design time.
                  ═══════════════════════════════════════════ -->
 
-            <!-- Accent — single violet, no competing hue -->
-            <SolidColorBrush x:Key="AccentBrush"          Color="#8B5CF6" />
-            <SolidColorBrush x:Key="AccentHoverBrush"      Color="#A78BFA" />
-            <SolidColorBrush x:Key="AccentPressedBrush"    Color="#7C3AED" />
-            <SolidColorBrush x:Key="AccentSubtleBg"        Color="#2A2440" />
+            <!-- Accent — soft diff-viewer blue with small purple-compatible tints -->
+            <SolidColorBrush x:Key="AccentBrush"          Color="#73C2FF" />
+            <SolidColorBrush x:Key="AccentHoverBrush"      Color="#7EC7FF" />
+            <SolidColorBrush x:Key="AccentPressedBrush"    Color="#63A7DC" />
+            <SolidColorBrush x:Key="AccentSubtleBg"        Color="#2673C2FF" />
             <SolidColorBrush x:Key="OnAccentFg"            Color="#FFFFFF" />
-            <SolidColorBrush x:Key="SuccessBrush"          Color="#34D399" />
-            <SolidColorBrush x:Key="ErrorBrush"            Color="#FB7185" />
+            <SolidColorBrush x:Key="SuccessBrush"          Color="#4ADE80" />
+            <SolidColorBrush x:Key="ErrorBrush"            Color="#FCA5A5" />
 
-            <!-- Surfaces — opaque neutral zinc, layered by elevation -->
-            <SolidColorBrush x:Key="AppBg"                 Color="#0B0B0D" />
-            <SolidColorBrush x:Key="PanelBg"               Color="#121214" />
-            <SolidColorBrush x:Key="CardBg"                Color="#161618" />
-            <SolidColorBrush x:Key="CardMutedBg"           Color="#1C1C1F" />
-            <SolidColorBrush x:Key="ElevatedBg"            Color="#202023" />
-            <SolidColorBrush x:Key="HoverBg"               Color="#232327" />
-            <SolidColorBrush x:Key="SelectedBg"            Color="#241E33" />
-            <SolidColorBrush x:Key="SelectedBorder"        Color="#4C3A7A" />
-            <SolidColorBrush x:Key="SurfaceBg"             Color="#0B0B0D" />
+            <!-- Surfaces — one charcoal family, separated only by slight tonal shifts -->
+            <SolidColorBrush x:Key="AppBg"                 Color="#242424" />
+            <SolidColorBrush x:Key="PanelBg"               Color="#232323" />
+            <SolidColorBrush x:Key="CardBg"                Color="#262626" />
+            <SolidColorBrush x:Key="CardMutedBg"           Color="#2A2A2E" />
+            <SolidColorBrush x:Key="ElevatedBg"            Color="#303032" />
+            <SolidColorBrush x:Key="HoverBg"               Color="#2D2D2F" />
+            <SolidColorBrush x:Key="SelectedBg"            Color="#29323A" />
+            <SolidColorBrush x:Key="SelectedBorder"        Color="#4D73C2FF" />
+            <SolidColorBrush x:Key="SurfaceBg"             Color="#242424" />
 
             <!-- Text — stepped contrast, all legible on dark -->
-            <SolidColorBrush x:Key="PrimaryFg"             Color="#FAFAFA" />
-            <SolidColorBrush x:Key="SecondaryFg"           Color="#C8C8CC" />
-            <SolidColorBrush x:Key="MutedFg"               Color="#9A9AA2" />
-            <SolidColorBrush x:Key="TertiaryFg"            Color="#74747C" />
+            <SolidColorBrush x:Key="PrimaryFg"             Color="#F0F0F0" />
+            <SolidColorBrush x:Key="SecondaryFg"           Color="#A1A1AA" />
+            <SolidColorBrush x:Key="MutedFg"               Color="#8F8F96" />
+            <SolidColorBrush x:Key="TertiaryFg"            Color="#71717A" />
 
             <!-- Borders — hairline -->
-            <SolidColorBrush x:Key="SubtleBorder"          Color="#2A2A2E" />
-            <SolidColorBrush x:Key="SoftBorder"            Color="#1F1F22" />
-            <SolidColorBrush x:Key="DividerBrush"          Color="#232327" />
+            <SolidColorBrush x:Key="SubtleBorder"          Color="#343434" />
+            <SolidColorBrush x:Key="SoftBorder"            Color="#373737" />
+            <SolidColorBrush x:Key="DividerBrush"          Color="#343434" />
 
             <!-- Code -->
-            <SolidColorBrush x:Key="CodeBg"                Color="#0E0E10" />
-            <SolidColorBrush x:Key="CodeFg"                Color="#D4D4D8" />
+            <SolidColorBrush x:Key="CodeBg"                Color="#222222" />
+            <SolidColorBrush x:Key="CodeFg"                Color="#F0F0F0" />
 
-            <!-- Semantic states — opaque tints -->
-            <SolidColorBrush x:Key="SuccessSubtleBg"       Color="#14271F" />
-            <SolidColorBrush x:Key="SuccessSubtleBorder"   Color="#1F4D3A" />
-            <SolidColorBrush x:Key="SuccessSubtleFg"       Color="#6EE7B7" />
-            <SolidColorBrush x:Key="PendingSubtleBg"       Color="#1C1C1F" />
-            <SolidColorBrush x:Key="WarningSubtleBg"       Color="#2A2113" />
-            <SolidColorBrush x:Key="WarningSubtleBorder"   Color="#4D3B14" />
-            <SolidColorBrush x:Key="WarningSubtleFg"       Color="#FCD34D" />
-            <SolidColorBrush x:Key="ErrorSubtleBg"         Color="#2A1620" />
-            <SolidColorBrush x:Key="ErrorSubtleBorder"     Color="#4D2230" />
-            <SolidColorBrush x:Key="ErrorSubtleFg"         Color="#FDA4AF" />
+            <!-- Semantic states — translucent tints over the dark base -->
+            <SolidColorBrush x:Key="SuccessSubtleBg"       Color="#1F22C55E" />
+            <SolidColorBrush x:Key="SuccessSubtleBorder"   Color="#4022C55E" />
+            <SolidColorBrush x:Key="SuccessSubtleFg"       Color="#4ADE80" />
+            <SolidColorBrush x:Key="PendingSubtleBg"       Color="#2A2A2E" />
+            <SolidColorBrush x:Key="WarningSubtleBg"       Color="#1FEAB308" />
+            <SolidColorBrush x:Key="WarningSubtleBorder"   Color="#40EAB308" />
+            <SolidColorBrush x:Key="WarningSubtleFg"       Color="#FDE68A" />
+            <SolidColorBrush x:Key="ErrorSubtleBg"         Color="#1FEF4444" />
+            <SolidColorBrush x:Key="ErrorSubtleBorder"     Color="#40EF4444" />
+            <SolidColorBrush x:Key="ErrorSubtleFg"         Color="#FCA5A5" />
 
             <!-- Step indicator -->
-            <SolidColorBrush x:Key="StepActiveBg"          Color="#8B5CF6" />
-            <SolidColorBrush x:Key="StepCompleteBg"        Color="#34D399" />
-            <SolidColorBrush x:Key="StepInactiveBg"        Color="#2E2E33" />
-            <SolidColorBrush x:Key="StepLineActive"        Color="#8B5CF6" />
-            <SolidColorBrush x:Key="StepLineInactive"      Color="#2A2A2E" />
+            <SolidColorBrush x:Key="StepActiveBg"          Color="#73C2FF" />
+            <SolidColorBrush x:Key="StepCompleteBg"        Color="#22C55E" />
+            <SolidColorBrush x:Key="StepInactiveBg"        Color="#2A2A2E" />
+            <SolidColorBrush x:Key="StepLineActive"        Color="#73C2FF" />
+            <SolidColorBrush x:Key="StepLineInactive"      Color="#343434" />
 
             <!-- ═══════════════════════════════════════════
                  TYPOGRAPHY

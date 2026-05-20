@@ -25,9 +25,9 @@ public sealed class StepVisibilityConverter : IValueConverter
 
 public sealed class StepBrushConverter : IValueConverter
 {
-    private static readonly SolidColorBrush Completed = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x34, 0xD3, 0x99)));
-    private static readonly SolidColorBrush Active = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x8B, 0x5C, 0xF6)));
-    private static readonly SolidColorBrush Upcoming = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x2E, 0x2E, 0x33)));
+    private static readonly SolidColorBrush Completed = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x22, 0xC5, 0x5E)));
+    private static readonly SolidColorBrush Active = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x73, 0xC2, 0xFF)));
+    private static readonly SolidColorBrush Upcoming = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x2A, 0x2A, 0x2E)));
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
@@ -53,7 +53,7 @@ public sealed class StepBrushConverter : IValueConverter
 
 public sealed class StepForegroundConverter : IValueConverter
 {
-    private static readonly SolidColorBrush ActiveOrDoneFallback = Freeze(new SolidColorBrush(WpfColor.FromRgb(250, 250, 250)));
+    private static readonly SolidColorBrush ActiveOrDoneFallback = Freeze(new SolidColorBrush(WpfColor.FromRgb(244, 244, 245)));
     private static readonly SolidColorBrush InactiveFallback = Freeze(new SolidColorBrush(WpfColor.FromRgb(113, 113, 122)));
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
@@ -85,8 +85,8 @@ public sealed class StepForegroundConverter : IValueConverter
 
 public sealed class StepLineBrushConverter : IValueConverter
 {
-    private static readonly SolidColorBrush Done = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x8B, 0x5C, 0xF6)));
-    private static readonly SolidColorBrush Pending = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x2A, 0x2A, 0x2E)));
+    private static readonly SolidColorBrush Done = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x73, 0xC2, 0xFF)));
+    private static readonly SolidColorBrush Pending = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x34, 0x34, 0x34)));
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
@@ -128,10 +128,10 @@ public sealed class InverseBoolToVisibilityConverter : IValueConverter
 
 public sealed class StatusDotBrushConverter : IValueConverter
 {
-    private static readonly SolidColorBrush Connected = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x34, 0xD3, 0x99)));
-    private static readonly SolidColorBrush Connecting = Freeze(new SolidColorBrush(WpfColor.FromRgb(0xFB, 0xBF, 0x24)));
-    private static readonly SolidColorBrush Error = Freeze(new SolidColorBrush(WpfColor.FromRgb(0xFB, 0x71, 0x85)));
-    private static readonly SolidColorBrush Offline = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x74, 0x74, 0x7C)));
+    private static readonly SolidColorBrush Connected = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x4A, 0xDE, 0x80)));
+    private static readonly SolidColorBrush Connecting = Freeze(new SolidColorBrush(WpfColor.FromRgb(0xFD, 0xE6, 0x8A)));
+    private static readonly SolidColorBrush Error = Freeze(new SolidColorBrush(WpfColor.FromRgb(0xFC, 0xA5, 0xA5)));
+    private static readonly SolidColorBrush Offline = Freeze(new SolidColorBrush(WpfColor.FromRgb(0x71, 0x71, 0x7A)));
 
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {

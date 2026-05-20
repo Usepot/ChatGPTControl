@@ -69,6 +69,7 @@ public sealed class SettingsStore
                     IsDarkMode = hasDarkModeSetting
                         ? loadedSettings.IsDarkMode
                         : true,
+                    ChatGptProjects = loadedSettings.ChatGptProjects ?? [],
                 }),
                 Logs = parsed.Logs ?? [],
             };

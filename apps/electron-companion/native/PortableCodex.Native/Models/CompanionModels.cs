@@ -37,6 +37,28 @@ public sealed class CompanionSettings
     public bool MultithreadedFileSearches { get; set; }
 
     public bool IsDarkMode { get; set; } = true;
+
+    public List<ChatGptProjectMeta> ChatGptProjects { get; set; } = [];
+}
+
+public sealed class ChatGptProjectMeta
+{
+    public string WorkspacePath { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public string ProjectUrl { get; set; } = string.Empty;
+
+    public List<ChatGptThread> Threads { get; set; } = [];
+}
+
+public sealed class ChatGptThread
+{
+    public string Url { get; set; } = string.Empty;
+
+    public string Title { get; set; } = string.Empty;
+
+    public string LastVisitedAt { get; set; } = string.Empty;
 }
 
 public sealed class PersistedState

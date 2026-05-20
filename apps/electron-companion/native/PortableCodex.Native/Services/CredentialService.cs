@@ -65,6 +65,7 @@ public sealed partial class CredentialService
         settings.RequireApprovalForWrites = overrides.RequireApprovalForWrites;
         settings.MultithreadedFileSearches = overrides.MultithreadedFileSearches;
         settings.IsDarkMode = overrides.IsDarkMode;
+        settings.ChatGptProjects = overrides.ChatGptProjects ?? [];
         return settings;
     }
 

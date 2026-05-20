@@ -5,14 +5,14 @@
     <Grid Background="{DynamicResource AppBg}">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="324" />
-            <ColumnDefinition Width="1" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
         <!-- ══════════════════════════════════════════════════
              SIDEBAR — grouped cards
              ══════════════════════════════════════════════════ -->
-        <Border Grid.Column="0" Background="{DynamicResource PanelBg}">
+        <Border Grid.Column="0" Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,1,0">
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="24,24,20,24">
 
@@ -65,6 +65,18 @@
                             <TextBlock FontSize="10.5" FontFamily="Cascadia Code, Consolas" Foreground="{DynamicResource TertiaryFg}" Text="{Binding DeviceId}" Margin="0,2,0,0" TextWrapping="Wrap" />
                         </StackPanel>
                     </DockPanel>
+
+                    <Border Style="{StaticResource Divider}" Margin="0,22" />
+
+                    <!-- ── ChatGPT ── -->
+                    <DockPanel Margin="0,0,0,12">
+                        <ui:SymbolIcon DockPanel.Dock="Left" Symbol="Chat24" FontSize="16" Foreground="{DynamicResource AccentBrush}" Margin="0,0,9,0" VerticalAlignment="Center" />
+                        <TextBlock Text="ChatGPT" Style="{StaticResource SectionTitle}" FontSize="15" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBlock Style="{StaticResource CaptionText}" Margin="0,0,0,10" TextWrapping="Wrap"
+                               Text="Open ChatGPT.com inside Portable Codex. Each trusted workspace acts as a project, and chats become threads under it." />
+                    <ui:Button Appearance="Primary" FontSize="12" HorizontalAlignment="Stretch"
+                               Content="Open ChatGPT" Command="{Binding OpenChatGptCommand}" />
 
                     <Border Style="{StaticResource Divider}" Margin="0,22" />
 
@@ -140,12 +152,10 @@
             </ScrollViewer>
         </Border>
 
-        <Border Grid.Column="1" Background="{DynamicResource DividerBrush}" />
-
         <!-- ══════════════════════════════════════════════════
              MAIN PANEL — Activity
              ══════════════════════════════════════════════════ -->
-        <Grid Grid.Column="2">
+        <Grid Grid.Column="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" MinHeight="160" />
@@ -251,32 +261,8 @@
                                 </StackPanel>
 
                                 <!-- Status pill -->
-                                <Border Grid.Column="2" Padding="10,4" Margin="12,0,0,0" CornerRadius="0" VerticalAlignment="Center">
-                                    <Border.Style>
-                                        <Style TargetType="Border">
-                                            <Setter Property="Background" Value="{DynamicResource SuccessSubtleBg}" />
-                                            <Setter Property="BorderBrush" Value="{DynamicResource SuccessSubtleBorder}" />
-                                            <Setter Property="BorderThickness" Value="1" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Status}" Value="pending">
-                                                    <Setter Property="Background" Value="{DynamicResource PendingSubtleBg}" />
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource SubtleBorder}" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="error">
-                                                    <Setter Property="Background" Value="{DynamicResource ErrorSubtleBg}" />
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource ErrorSubtleBorder}" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="denied">
-                                                    <Setter Property="Background" Value="{DynamicResource ErrorSubtleBg}" />
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource ErrorSubtleBorder}" />
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Status}" Value="timeout">
-                                                    <Setter Property="Background" Value="{DynamicResource WarningSubtleBg}" />
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource WarningSubtleBorder}" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Border.Style>
+                                <Border Grid.Column="2" Padding="10,4" Margin="12,0,0,0" CornerRadius="0" VerticalAlignment="Center"
+                                        Background="{DynamicResource CardMutedBg}" BorderBrush="{DynamicResource SubtleBorder}" BorderThickness="1">
                                     <StackPanel Orientation="Horizontal">
                                         <Border Width="6" Height="6" CornerRadius="3" VerticalAlignment="Center" Margin="0,0,7,0">
                                             <Border.Style>
@@ -291,19 +277,7 @@
                                                 </Style>
                                             </Border.Style>
                                         </Border>
-                                        <TextBlock FontSize="11" FontWeight="Medium" Text="{Binding StatusDisplay}">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{DynamicResource SuccessSubtleFg}" />
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding Status}" Value="pending"><Setter Property="Foreground" Value="{DynamicResource MutedFg}" /></DataTrigger>
-                                                        <DataTrigger Binding="{Binding Status}" Value="error"><Setter Property="Foreground" Value="{DynamicResource ErrorSubtleFg}" /></DataTrigger>
-                                                        <DataTrigger Binding="{Binding Status}" Value="denied"><Setter Property="Foreground" Value="{DynamicResource ErrorSubtleFg}" /></DataTrigger>
-                                                        <DataTrigger Binding="{Binding Status}" Value="timeout"><Setter Property="Foreground" Value="{DynamicResource WarningSubtleFg}" /></DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
+                                        <TextBlock FontSize="11" FontWeight="Medium" Foreground="{DynamicResource SecondaryFg}" Text="{Binding StatusDisplay}" />
                                     </StackPanel>
                                 </Border>
                             </Grid>

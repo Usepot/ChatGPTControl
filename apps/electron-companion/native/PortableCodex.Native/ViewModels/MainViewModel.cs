@@ -29,6 +29,7 @@ public sealed partial class MainViewModel : ObservableObject
     public const int StepWorkspaces = 3;
     public const int StepReady = 4;
     public const int StepDiffViewer = 5;
+    // StepChatGpt = 6 lives in MainViewModel.ChatGpt.cs to keep the partial cohesive.
 
     private readonly CredentialService _credentialService = new();
     private readonly PathPolicyService _pathPolicy = new();
@@ -164,6 +165,7 @@ public sealed partial class MainViewModel : ObservableObject
         ReturnToDashboardCommand = new RelayCommand(() => CurrentStep = StepReady);
         RefreshDiffCommand = new AsyncRelayCommand(RefreshDiffAsync);
         CopyDiffCommand = new RelayCommand(CopyDiff);
+        InitializeChatGptCommands();
 
         FilteredLogs = CollectionViewSource.GetDefaultView(ActivityLogs);
         FilteredLogs.Filter = FilterLogs;
@@ -179,6 +181,7 @@ public sealed partial class MainViewModel : ObservableObject
                 CurrentWorkspace = string.Empty;
             }
 
+            SyncChatGptProjectsWithWorkspaces();
             SyncCurrentStepWithState();
         };
         SkillRoots.CollectionChanged += (_, _) =>
@@ -266,6 +269,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         StepSetup => CredentialsReady && RelayReady,
         StepReady => false,
+        StepDiffViewer => false,
+        StepChatGpt => false,
         _ => true,
     };
 

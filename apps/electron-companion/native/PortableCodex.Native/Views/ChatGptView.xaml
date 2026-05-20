@@ -1,0 +1,301 @@
+<UserControl x:Class="PortableCodex.Native.Views.ChatGptView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf">
+    <UserControl.Resources>
+        <Style x:Key="SidebarIconButton" TargetType="Button">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{DynamicResource MutedFg}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Shell" Background="{TemplateBinding Background}" CornerRadius="0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Shell" Property="Background" Value="{DynamicResource HoverBg}" />
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryFg}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ProjectDividerToggleButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="14,8,8,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryFg}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Shell" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Shell" Property="Background" Value="{DynamicResource HoverBg}" />
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryFg}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ProjectDividerPlusButton" TargetType="Button">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{DynamicResource TertiaryFg}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Shell" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Shell" Property="Background" Value="{DynamicResource AccentSubtleBg}" />
+                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ThreadButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryFg}" />
+            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Shell" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Shell" Property="Background" Value="{DynamicResource HoverBg}" />
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryFg}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ThreadRemoveButton" TargetType="Button">
+            <Setter Property="Width" Value="20" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource TertiaryFg}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Shell" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Shell" Property="Background" Value="{DynamicResource ErrorSubtleBg}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ErrorSubtleFg}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="{DynamicResource AppBg}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ── Sidebar: projects + threads ── -->
+        <Border Grid.Column="0" Background="{DynamicResource PanelBg}"
+                BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,1,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0" Margin="14,16,14,4">
+                    <ui:SymbolIcon DockPanel.Dock="Left" Symbol="Chat24" FontSize="18"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   Margin="0,0,9,0" VerticalAlignment="Center" />
+                    <TextBlock Text="ChatGPT" Style="{StaticResource SectionTitle}" FontSize="16" VerticalAlignment="Center" />
+                </DockPanel>
+
+                <!-- Quick-add + add-folder icon row -->
+                <DockPanel Grid.Row="1" Margin="14,8,14,8">
+                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource SectionLabel}" Text="CHATS" VerticalAlignment="Center" />
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="QuickAddButton" Style="{StaticResource SidebarIconButton}"
+                                ToolTip="Open an existing trusted workspace as a project"
+                                Click="OnQuickAddClick">
+                            <ui:SymbolIcon Symbol="FolderArrowRight24" FontSize="14" />
+                        </Button>
+                        <Button Style="{StaticResource SidebarIconButton}" Margin="4,0,0,0"
+                                ToolTip="Add a new folder as a trusted workspace"
+                                Command="{Binding AddWorkspaceCommand}">
+                            <ui:SymbolIcon Symbol="FolderAdd24" FontSize="14" />
+                        </Button>
+                    </StackPanel>
+                    <TextBlock />
+                </DockPanel>
+
+                <!-- Project / thread list -->
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource CaptionText}" TextWrapping="Wrap" Margin="14,6,14,12"
+                                   Text="No chats yet. Click the icons above to open or add a workspace, then start a chat in the browser."
+                                   Visibility="{Binding HasAnyChatGptThreads, Converter={StaticResource InverseBoolToVis}}" />
+
+                        <ItemsControl ItemsSource="{Binding ChatGptProjects}">
+                            <ItemsControl.ItemContainerStyle>
+                                <Style TargetType="ContentPresenter">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasThreads}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.ItemContainerStyle>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <!-- Thin divider header: expand toggle + inline new-chat button -->
+                                        <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Button Grid.Column="0" Style="{StaticResource ProjectDividerToggleButton}"
+                                                        Command="{Binding DataContext.ToggleChatGptProjectExpandedCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}"
+                                                        ToolTip="{Binding WorkspacePath}">
+                                                    <DockPanel LastChildFill="True">
+                                                        <TextBlock DockPanel.Dock="Left" Text="{Binding ExpandGlyph}" FontSize="10" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                        <TextBlock DockPanel.Dock="Right" Text="{Binding ThreadCountLabel}" FontSize="10.5" Foreground="{DynamicResource TertiaryFg}" VerticalAlignment="Center" />
+                                                        <TextBlock Text="{Binding DisplayTitle}" FontSize="12.5" FontWeight="Medium" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                                                    </DockPanel>
+                                                </Button>
+                                                <Button Grid.Column="1" Style="{StaticResource ProjectDividerPlusButton}"
+                                                        Content="+"
+                                                        ToolTip="Start a new chat in this project"
+                                                        Command="{Binding DataContext.SelectChatGptProjectCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}" />
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- Threads (visible when expanded) -->
+                                        <ItemsControl ItemsSource="{Binding Threads}"
+                                                      Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVis}}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Button Grid.Column="0" Style="{StaticResource ThreadButton}"
+                                                                Content="{Binding DisplayLabel}"
+                                                                ToolTip="{Binding Url}"
+                                                                Command="{Binding DataContext.OpenChatGptThreadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=2}}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Grid.Column="1" Style="{StaticResource ThreadRemoveButton}"
+                                                                Content="×"
+                                                                ToolTip="Remove from this project"
+                                                                Command="{Binding DataContext.RemoveChatGptThreadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl, AncestorLevel=2}}"
+                                                                CommandParameter="{Binding}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <ui:Button Grid.Row="3" Appearance="Transparent" Margin="14,8,14,16"
+                           HorizontalAlignment="Stretch" Content="← Back to dashboard"
+                           Command="{Binding CloseChatGptCommand}" />
+            </Grid>
+        </Border>
+
+        <!-- ── Main: WebView ── -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Padding="20,14,20,14" Background="{DynamicResource PanelBg}"
+                    BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:Button Appearance="Secondary" FontSize="11" Margin="0,0,6,0"
+                                   Content="+ New chat"
+                                   IsEnabled="{Binding HasActiveChatGptProject}"
+                                   Command="{Binding NewChatGptThreadCommand}" />
+                        <ui:Button Appearance="Transparent" FontSize="11" Margin="0,0,10,0"
+                                   Content="🔗" ToolTip="Pin a ChatGPT URL for this project"
+                                   IsEnabled="{Binding HasActiveChatGptProject}"
+                                   Command="{Binding SetChatGptProjectUrlCommand}"
+                                   CommandParameter="{Binding ActiveChatGptProject}" />
+                        <ui:Button Appearance="Transparent" FontSize="11" Margin="0,0,4,0"
+                                   Content="←" ToolTip="Back" Click="OnBackClick" />
+                        <ui:Button Appearance="Transparent" FontSize="11" Margin="0,0,4,0"
+                                   Content="→" ToolTip="Forward" Click="OnForwardClick" />
+                        <ui:Button Appearance="Transparent" FontSize="11"
+                                   Content="↻" ToolTip="Reload" Click="OnReloadClick" />
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock FontSize="11" Foreground="{DynamicResource TertiaryFg}" Text="ACTIVE PROJECT" />
+                        <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryFg}"
+                                   Text="{Binding ActiveChatGptProjectTitle}" Margin="0,2,0,0" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <Grid x:Name="WebViewHost" Grid.Row="1" />
+
+            <Border Grid.Row="2" Padding="20,10,20,10" Background="{DynamicResource PanelBg}"
+                    BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0">
+                <TextBlock FontSize="11" Foreground="{DynamicResource TertiaryFg}" TextWrapping="Wrap"
+                           Text="ChatGPT runs in an embedded browser. The current trusted workspace is set to the selected project — when ChatGPT tools ask for the workspace they will receive this folder." />
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
