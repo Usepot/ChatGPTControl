@@ -70,6 +70,8 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _requireApprovalForWrites;
     private bool _multithreadedFileSearches;
     private bool _isDarkMode = true;
+    private string _chatGptPinnedUrl = ChatGptProjectViewModel.DefaultProjectUrl;
+    private bool _isNormalizingTrustedWorkspaces;
 
     private string _logFilter = "all";
     private ToolLogEntry? _selectedLog;
@@ -174,6 +176,11 @@ public sealed partial class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(HasWorkspaces));
             OnPropertyChanged(nameof(ViewAllWorkspacesButtonText));
             OnPropertyChanged(nameof(CurrentWorkspaceChoices));
+            if (_isNormalizingTrustedWorkspaces)
+            {
+                return;
+            }
+
             if (!_isLoadingState &&
                 !string.IsNullOrWhiteSpace(CurrentWorkspace) &&
                 !TrustedWorkspaces.Any(w => string.Equals(w, CurrentWorkspace, StringComparison.OrdinalIgnoreCase)))

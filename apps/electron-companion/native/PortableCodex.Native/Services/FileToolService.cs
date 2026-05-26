@@ -28,14 +28,37 @@ public sealed partial class FileToolService
     private const int DefaultCommandMaxOutputBytes = 200_000;
     private const int DefaultImageMaxBytes = 5_000_000;
     private const int DefaultYieldTimeMs = 1_000;
+    private const long DefaultSearchMaxFileBytes = 2_000_000;
     private const int MaxSearchThreadCount = 32;
     private static readonly ConcurrentDictionary<int, ShellSession> ShellSessions = new();
     private static int NextShellSessionId;
     private static readonly HashSet<string> SearchSkipDirs = new(StringComparer.OrdinalIgnoreCase)
     {
+        ".cache",
         ".git",
+        ".gradle",
+        ".mypy_cache",
+        ".next",
+        ".nuxt",
+        ".pytest_cache",
+        ".svelte-kit",
+        ".tools",
+        ".turbo",
+        ".venv",
+        ".vercel",
+        ".vite",
+        "__pycache__",
+        "bin",
+        "build",
+        "coverage",
         "node_modules",
+        "obj",
+        "out",
         "dist",
+        "target",
+        "vendor",
+        "venv",
+        "generated",
     };
 
     private readonly PathPolicyService _pathPolicy;

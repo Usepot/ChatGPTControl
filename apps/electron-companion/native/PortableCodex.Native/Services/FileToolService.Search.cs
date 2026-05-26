@@ -318,6 +318,25 @@ public sealed partial class FileToolService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        FileAttributes attributes;
+        try
+        {
+            attributes = File.GetAttributes(currentPath);
+        }
+        catch (IOException)
+        {
+            return;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+
+        if ((attributes & FileAttributes.ReparsePoint) != 0)
+        {
+            return;
+        }
+
         if (Directory.Exists(currentPath))
         {
             var directoryName = Path.GetFileName(currentPath);
@@ -326,7 +345,21 @@ public sealed partial class FileToolService
                 return;
             }
 
-            foreach (var entry in Directory.EnumerateFileSystemEntries(currentPath))
+            string[] entries;
+            try
+            {
+                entries = Directory.EnumerateFileSystemEntries(currentPath).ToArray();
+            }
+            catch (IOException)
+            {
+                return;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return;
+            }
+
+            foreach (var entry in entries)
             {
                 CollectSearchFiles(entry, request, files, cancellationToken);
             }
@@ -350,6 +383,25 @@ public sealed partial class FileToolService
             {
                 return;
             }
+        }
+
+        FileInfo fileInfo;
+        try
+        {
+            fileInfo = new FileInfo(currentPath);
+        }
+        catch (IOException)
+        {
+            return;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+
+        if (fileInfo.Length > DefaultSearchMaxFileBytes)
+        {
+            return;
         }
 
         files.Add(currentPath);

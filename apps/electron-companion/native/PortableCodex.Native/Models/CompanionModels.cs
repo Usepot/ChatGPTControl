@@ -38,6 +38,8 @@ public sealed class CompanionSettings
 
     public bool IsDarkMode { get; set; } = true;
 
+    public string ChatGptPinnedUrl { get; set; } = string.Empty;
+
     public List<ChatGptProjectMeta> ChatGptProjects { get; set; } = [];
 }
 

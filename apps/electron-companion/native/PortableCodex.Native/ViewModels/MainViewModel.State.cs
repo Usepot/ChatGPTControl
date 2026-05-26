@@ -40,6 +40,7 @@ public sealed partial class MainViewModel
             _requireApprovalForWrites = false;
             _multithreadedFileSearches = settings.MultithreadedFileSearches;
             _isDarkMode = settings.IsDarkMode;
+            _chatGptPinnedUrl = ResolvePersistedChatGptPinnedUrl(settings);
 
             TrustedWorkspaces.Clear();
             foreach (var workspace in settings.TrustedWorkspaces.Order(StringComparer.OrdinalIgnoreCase))
@@ -133,8 +134,26 @@ public sealed partial class MainViewModel
             RequireApprovalForWrites = false,
             MultithreadedFileSearches = MultithreadedFileSearches,
             IsDarkMode = IsDarkMode,
+            ChatGptPinnedUrl = ChatGptPinnedUrl,
             ChatGptProjects = ChatGptProjects.Select(p => p.ToModel()).ToList(),
         };
+    }
+
+    private static string ResolvePersistedChatGptPinnedUrl(CompanionSettings settings)
+    {
+        if (!string.IsNullOrWhiteSpace(settings.ChatGptPinnedUrl))
+        {
+            return settings.ChatGptPinnedUrl.Trim();
+        }
+
+        var migrated = (settings.ChatGptProjects ?? [])
+            .Select(p => p.ProjectUrl)
+            .FirstOrDefault(url => !string.IsNullOrWhiteSpace(url) &&
+                !string.Equals(url.Trim(), ChatGptProjectViewModel.DefaultProjectUrl, StringComparison.OrdinalIgnoreCase));
+
+        return string.IsNullOrWhiteSpace(migrated)
+            ? ChatGptProjectViewModel.DefaultProjectUrl
+            : migrated.Trim();
     }
 
     private static void ApplyRequestDefaults(ToolRequest request, CompanionSettings settings)

@@ -6,6 +6,7 @@
         Title="Portable Codex"
         Width="1100" Height="780"
         MinWidth="860" MinHeight="600"
+        Icon="Assets/PortableCodex.ico"
         FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif"
         WindowStartupLocation="CenterScreen"
         ExtendsContentIntoTitleBar="True"

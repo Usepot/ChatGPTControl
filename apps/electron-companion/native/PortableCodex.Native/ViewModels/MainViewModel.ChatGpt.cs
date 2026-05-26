@@ -52,7 +52,13 @@ public sealed partial class MainViewModel
     public string PendingWebViewUrl
     {
         get => _pendingWebViewUrl;
-        private set => SetProperty(ref _pendingWebViewUrl, value);
+        private set
+        {
+            if (!SetProperty(ref _pendingWebViewUrl, value))
+            {
+                OnPropertyChanged();
+            }
+        }
     }
 
     public bool HasActiveChatGptProject => ActiveChatGptProject is not null;
@@ -69,6 +75,18 @@ public sealed partial class MainViewModel
     public RelayCommand RemoveChatGptThreadCommand { get; private set; } = null!;
     public RelayCommand SetChatGptProjectUrlCommand { get; private set; } = null!;
     public RelayCommand ToggleChatGptProjectExpandedCommand { get; private set; } = null!;
+
+    public string ChatGptPinnedUrl
+    {
+        get => _chatGptPinnedUrl;
+        private set
+        {
+            var trimmed = (value ?? string.Empty).Trim();
+            SetProperty(ref _chatGptPinnedUrl, string.IsNullOrWhiteSpace(trimmed)
+                ? ChatGptProjectViewModel.DefaultProjectUrl
+                : trimmed);
+        }
+    }
 
     private void InitializeChatGptCommands()
     {
@@ -145,9 +163,7 @@ public sealed partial class MainViewModel
         ActiveChatGptProject = project;
         project.IsExpanded = true;
         ActiveChatGptThread = null;
-        PendingWebViewUrl = !string.IsNullOrWhiteSpace(project.ProjectUrl)
-            ? project.ProjectUrl
-            : ChatGptProjectViewModel.DefaultProjectUrl;
+        PendingWebViewUrl = ChatGptPinnedUrl;
     }
 
     private void StartNewChatGptThread()
@@ -158,9 +174,7 @@ public sealed partial class MainViewModel
         }
 
         ActiveChatGptThread = null;
-        PendingWebViewUrl = !string.IsNullOrWhiteSpace(ActiveChatGptProject.ProjectUrl)
-            ? ActiveChatGptProject.ProjectUrl
-            : ChatGptProjectViewModel.DefaultProjectUrl;
+        PendingWebViewUrl = ChatGptPinnedUrl;
     }
 
     private void OpenChatGptThread(ChatGptThreadViewModel? thread)
@@ -206,7 +220,7 @@ public sealed partial class MainViewModel
 
         var dialog = new System.Windows.Window
         {
-            Title = $"Pin a ChatGPT URL — {project.DisplayTitle}",
+            Title = "Pin ChatGPT URL",
             Width = 520,
             Height = 200,
             MinWidth = 360,
@@ -220,7 +234,7 @@ public sealed partial class MainViewModel
 
         var label = new System.Windows.Controls.TextBlock
         {
-            Text = "Paste the ChatGPT URL that \"New chat\" should open in this project.\nFor a ChatGPT Project, use its /g/g-... or /project/... link.",
+            Text = "Paste the ChatGPT URL that new chats should open across all workspaces.\nFor a ChatGPT Project, use its /g/g-... or /project/... link.",
             TextWrapping = System.Windows.TextWrapping.Wrap,
             Margin = new System.Windows.Thickness(0, 0, 0, 10),
         };
@@ -228,7 +242,7 @@ public sealed partial class MainViewModel
 
         var input = new System.Windows.Controls.TextBox
         {
-            Text = project.ProjectUrl,
+            Text = ChatGptPinnedUrl,
             FontFamily = new System.Windows.Media.FontFamily("Cascadia Code, Consolas"),
             FontSize = 12,
             Padding = new System.Windows.Thickness(8, 6, 8, 6),
@@ -250,11 +264,11 @@ public sealed partial class MainViewModel
         cancel.Click += (_, _) => dialog.Close();
         save.Click += (_, _) =>
         {
-            project.ProjectUrl = input.Text;
+            ChatGptPinnedUrl = input.Text;
             PersistState();
             if (ReferenceEquals(ActiveChatGptProject, project))
             {
-                PendingWebViewUrl = project.ProjectUrl;
+                PendingWebViewUrl = ChatGptPinnedUrl;
             }
             dialog.Close();
         };
@@ -342,9 +356,9 @@ public sealed partial class MainViewModel
             return ActiveChatGptThread.Url;
         }
 
-        if (ActiveChatGptProject is not null && !string.IsNullOrWhiteSpace(ActiveChatGptProject.ProjectUrl))
+        if (!string.IsNullOrWhiteSpace(ChatGptPinnedUrl))
         {
-            return ActiveChatGptProject.ProjectUrl;
+            return ChatGptPinnedUrl;
         }
 
         return ChatGptProjectViewModel.DefaultProjectUrl;

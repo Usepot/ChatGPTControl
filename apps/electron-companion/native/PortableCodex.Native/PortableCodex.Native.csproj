@@ -9,6 +9,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>PortableCodex</AssemblyName>
     <Product>Portable Codex</Product>
+    <ApplicationIcon>Assets\PortableCodex.ico</ApplicationIcon>
     <!-- Single-file portable .exe on `dotnet publish` (see npm run build:exe / dist:win) -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
@@ -32,6 +33,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="Assets\PortableCodex.ico" />
     <PackageReference Include="WPF-UI" Version="4.2.1" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2535.41" />
   </ItemGroup>

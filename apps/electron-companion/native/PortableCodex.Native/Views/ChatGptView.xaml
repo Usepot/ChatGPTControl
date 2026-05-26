@@ -270,7 +270,7 @@
                                    IsEnabled="{Binding HasActiveChatGptProject}"
                                    Command="{Binding NewChatGptThreadCommand}" />
                         <ui:Button Appearance="Transparent" FontSize="11" Margin="0,0,10,0"
-                                   Content="🔗" ToolTip="Pin a ChatGPT URL for this project"
+                                   Content="🔗" ToolTip="Pin a ChatGPT URL for all workspaces"
                                    IsEnabled="{Binding HasActiveChatGptProject}"
                                    Command="{Binding SetChatGptProjectUrlCommand}"
                                    CommandParameter="{Binding ActiveChatGptProject}" />

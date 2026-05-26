@@ -170,6 +170,7 @@ public partial class ChatGptView : System.Windows.Controls.UserControl
     {
         if (_draftPerProject.TryGetValue(workspace, out var existing))
         {
+            NavigateEntry(existing, url);
             return existing;
         }
         if (_draftCreating.TryGetValue(workspace, out var pending))
@@ -215,6 +216,7 @@ public partial class ChatGptView : System.Windows.Controls.UserControl
 
         var entry = new WebViewEntry(wv);
         core.NavigationCompleted += (_, _) => OnNavCompleted(entry);
+        core.SourceChanged += (_, _) => OnSourceChanged(entry);
         core.DocumentTitleChanged += (_, _) => OnTitleChanged(entry);
         return entry;
     }
@@ -253,6 +255,20 @@ public partial class ChatGptView : System.Windows.Controls.UserControl
     }
 
     private void OnNavCompleted(WebViewEntry entry)
+    {
+        if (_vm is null)
+        {
+            return;
+        }
+
+        var url = entry.WebView.CoreWebView2?.Source ?? string.Empty;
+        var title = entry.WebView.CoreWebView2?.DocumentTitle ?? string.Empty;
+        PromoteDraftIfNeeded(entry, url);
+        entry.LastActiveAt = DateTime.UtcNow;
+        _vm.OnChatGptNavigated(url, title);
+    }
+
+    private void OnSourceChanged(WebViewEntry entry)
     {
         if (_vm is null)
         {

@@ -24,11 +24,33 @@ public sealed partial class MainViewModel
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        TrustedWorkspaces.Clear();
-        foreach (var workspace in normalized)
+
+        _isNormalizingTrustedWorkspaces = true;
+        try
         {
-            TrustedWorkspaces.Add(workspace);
+            TrustedWorkspaces.Clear();
+            foreach (var workspace in normalized)
+            {
+                TrustedWorkspaces.Add(workspace);
+            }
         }
+        finally
+        {
+            _isNormalizingTrustedWorkspaces = false;
+        }
+
+        OnPropertyChanged(nameof(HasWorkspaces));
+        OnPropertyChanged(nameof(ViewAllWorkspacesButtonText));
+        OnPropertyChanged(nameof(CurrentWorkspaceChoices));
+        if (!_isLoadingState &&
+            !string.IsNullOrWhiteSpace(CurrentWorkspace) &&
+            !TrustedWorkspaces.Any(w => string.Equals(w, CurrentWorkspace, StringComparison.OrdinalIgnoreCase)))
+        {
+            CurrentWorkspace = string.Empty;
+        }
+
+        SyncChatGptProjectsWithWorkspaces();
+        SyncCurrentStepWithState();
     }
 
     private void NormalizeSkillRoots()
