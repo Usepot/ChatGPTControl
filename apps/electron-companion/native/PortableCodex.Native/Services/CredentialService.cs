@@ -42,6 +42,7 @@ public sealed partial class CredentialService
             CurrentWorkspace = string.Empty,
             ImportCodexCliWorkspaces = false,
             RequireApprovalForWrites = false,
+            SetupCompleted = false,
             MultithreadedFileSearches = false,
             IsDarkMode = true,
         };
@@ -65,6 +66,7 @@ public sealed partial class CredentialService
         settings.SkillRoots = overrides.SkillRoots ?? [];
         settings.ImportCodexCliSkills = overrides.ImportCodexCliSkills;
         settings.RequireApprovalForWrites = overrides.RequireApprovalForWrites;
+        settings.SetupCompleted = overrides.SetupCompleted;
         settings.MultithreadedFileSearches = overrides.MultithreadedFileSearches;
         settings.IsDarkMode = overrides.IsDarkMode;
         settings.ChatGptProjects = overrides.ChatGptProjects ?? [];

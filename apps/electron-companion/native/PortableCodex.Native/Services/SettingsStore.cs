@@ -73,6 +73,7 @@ public sealed class SettingsStore
                     RequireApprovalForWrites = hasApprovalSetting
                         ? loadedSettings.RequireApprovalForWrites
                         : true,
+                    SetupCompleted = loadedSettings.SetupCompleted,
                     MultithreadedFileSearches = hasMultithreadedSearchSetting && loadedSettings.MultithreadedFileSearches,
                     IsDarkMode = hasDarkModeSetting
                         ? loadedSettings.IsDarkMode

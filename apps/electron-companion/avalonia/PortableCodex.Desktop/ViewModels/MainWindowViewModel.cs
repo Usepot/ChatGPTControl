@@ -11,18 +11,20 @@ namespace PortableCodex.Desktop.ViewModels;
 public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposable
 {
     private readonly CompanionRuntime _runtime;
-    private string _relayUrl = string.Empty;
+    private readonly IProcessLauncher _processLauncher = new DefaultProcessLauncher();
     private string _currentWorkspace = string.Empty;
-    private string _relayState = "disconnected";
-    private string _relayMessage = "Waiting for local relay";
     private string _localRelayState = "stopped";
     private string _localRelayMessage = "Local relay is stopped";
     private string _tunnelState = "stopped";
     private string _tunnelMessage = "Tailscale Funnel is not connected";
+    private string _tunnelUrl = string.Empty;
     private string _banner = string.Empty;
     private ToolLogEntry? _selectedActivity;
     private bool _isBusy;
     private bool _initialized;
+    private bool _setupCompleted;
+    private int _setupStep;
+    private bool _gptSetupAcknowledged;
 
     public MainWindowViewModel()
     {
@@ -31,8 +33,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
         _runtime.LogChanged += OnLogChanged;
         _runtime.ApprovalRequested += OnApprovalRequested;
 
-        _relayUrl = _runtime.Settings.RelayUrl;
         _currentWorkspace = _runtime.Settings.CurrentWorkspace;
+        _setupCompleted = _runtime.Settings.SetupCompleted;
+        _setupStep = _setupCompleted ? 4 : (_runtime.Settings.TrustedWorkspaces.Count > 0 ? 2 : 1);
+        _gptSetupAcknowledged = _setupCompleted;
         foreach (var workspace in _runtime.Settings.TrustedWorkspaces)
         {
             Workspaces.Add(workspace);
@@ -46,7 +50,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
         RefreshSkills();
         SelectedActivity = Activity.FirstOrDefault();
 
-        SaveCommand = new AsyncCommand(SaveSettingsAsync, () => !IsBusy);
         ConnectTailscaleCommand = new AsyncCommand(ConnectTailscaleAsync, () => !IsBusy);
         InstallTailscaleCommand = new AsyncCommand(InstallTailscaleAsync, () => !IsBusy);
         StopTailscaleCommand = new AsyncCommand(StopTailscaleAsync, () => !IsBusy && _runtime.IsTunnelRunning);
@@ -58,23 +61,35 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
                 _runtime.RemoveWorkspace(path);
                 Workspaces.Remove(path);
                 CurrentWorkspace = _runtime.Settings.CurrentWorkspace;
+                OnPropertyChanged(nameof(HasWorkspaces));
+                OnPropertyChanged(nameof(HasNoWorkspaces));
+                OnPropertyChanged(nameof(CanGoNext));
             }
         });
         RefreshSkillsCommand = new SimpleCommand(RefreshSkills);
         CopyDeviceIdCommand = new SimpleCommand(() => CopyRequested?.Invoke(DeviceId));
         CopyDeviceTokenCommand = new SimpleCommand(() => CopyRequested?.Invoke(DeviceToken));
+        FullAccessCommand = new AsyncCommand(GrantFullAccessAsync, () => !IsBusy);
+        NextSetupCommand = new SimpleCommand(AdvanceSetup);
+        BackSetupCommand = new SimpleCommand(() => SetupStep--);
+        RestartSetupCommand = new SimpleCommand(RestartSetup);
+        AcknowledgeGptSetupCommand = new SimpleCommand(AcknowledgeGptSetup);
+        OpenGptBuilderCommand = new SimpleCommand(OpenGptBuilder);
+        CopyGptInstructionsCommand = new SimpleCommand(() => CopyRequested?.Invoke(GptInstructions));
+        CopyGptSchemaCommand = new SimpleCommand(() => CopyRequested?.Invoke(CustomGptSchema));
+        CopyGptTokenCommand = new SimpleCommand(() => CopyRequested?.Invoke(GptApiToken));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public event Action? WorkspacePickerRequested;
     public event Action<string>? CopyRequested;
     public event Func<ToolRequest, string, Task<bool>>? ApprovalDialogRequested;
+    public event Func<Task<bool>>? FullAccessRequested;
 
     public ObservableCollection<string> Workspaces { get; } = [];
     public ObservableCollection<ToolLogEntry> Activity { get; } = [];
     public ObservableCollection<SkillListEntry> Skills { get; } = [];
 
-    public ICommand SaveCommand { get; }
     public ICommand ConnectTailscaleCommand { get; }
     public ICommand InstallTailscaleCommand { get; }
     public ICommand StopTailscaleCommand { get; }
@@ -83,12 +98,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
     public ICommand RefreshSkillsCommand { get; }
     public ICommand CopyDeviceIdCommand { get; }
     public ICommand CopyDeviceTokenCommand { get; }
-
-    public string RelayUrl
-    {
-        get => _relayUrl;
-        set => SetProperty(ref _relayUrl, value);
-    }
+    public ICommand FullAccessCommand { get; }
+    public ICommand NextSetupCommand { get; }
+    public ICommand BackSetupCommand { get; }
+    public ICommand RestartSetupCommand { get; }
+    public ICommand AcknowledgeGptSetupCommand { get; }
+    public ICommand OpenGptBuilderCommand { get; }
+    public ICommand CopyGptInstructionsCommand { get; }
+    public ICommand CopyGptSchemaCommand { get; }
+    public ICommand CopyGptTokenCommand { get; }
 
     public string CurrentWorkspace
     {
@@ -134,12 +152,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
     public string DeviceName => string.IsNullOrWhiteSpace(_runtime.Settings.DeviceName) ? "This device" : _runtime.Settings.DeviceName;
     public string DataDirectory => _runtime.Paths.DataDirectory;
 
-    public string RelayState { get => _relayState; private set => SetProperty(ref _relayState, value); }
-    public string RelayMessage { get => _relayMessage; private set => SetProperty(ref _relayMessage, value); }
     public string LocalRelayState { get => _localRelayState; private set => SetProperty(ref _localRelayState, value); }
     public string LocalRelayMessage { get => _localRelayMessage; private set => SetProperty(ref _localRelayMessage, value); }
     public string TunnelState { get => _tunnelState; private set => SetProperty(ref _tunnelState, value); }
     public string TunnelMessage { get => _tunnelMessage; private set => SetProperty(ref _tunnelMessage, value); }
+    public string TunnelUrl { get => _tunnelUrl; private set => SetProperty(ref _tunnelUrl, value); }
     public string Banner
     {
         get => _banner;
@@ -152,6 +169,89 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
         }
     }
     public bool IsBusy { get => _isBusy; private set => SetProperty(ref _isBusy, value); }
+    public bool SetupCompleted
+    {
+        get => _setupCompleted;
+        private set
+        {
+            if (SetProperty(ref _setupCompleted, value))
+            {
+                OnPropertyChanged(nameof(IsWizardVisible));
+                OnPropertyChanged(nameof(IsDashboardVisible));
+                OnPropertyChanged(nameof(SetupHeadline));
+                OnPropertyChanged(nameof(SetupMessage));
+            }
+        }
+    }
+    public bool IsWizardVisible => !SetupCompleted;
+    public bool IsDashboardVisible => SetupCompleted;
+    public int SetupStep
+    {
+        get => _setupStep;
+        private set
+        {
+            var clamped = Math.Clamp(value, 1, 4);
+            if (SetProperty(ref _setupStep, clamped))
+            {
+                OnPropertyChanged(nameof(IsAccessStep));
+                OnPropertyChanged(nameof(IsTunnelStep));
+                OnPropertyChanged(nameof(IsGptStep));
+                OnPropertyChanged(nameof(IsReadyStep));
+                OnPropertyChanged(nameof(CanGoBack));
+                OnPropertyChanged(nameof(CanGoNext));
+                OnPropertyChanged(nameof(SetupProgress));
+                OnPropertyChanged(nameof(SetupStepTitle));
+                OnPropertyChanged(nameof(SetupStepDescription));
+                OnPropertyChanged(nameof(SetupContinueLabel));
+            }
+        }
+    }
+    public bool IsAccessStep => SetupStep == 1;
+    public bool IsTunnelStep => SetupStep == 2;
+    public bool IsGptStep => SetupStep == 3;
+    public bool IsReadyStep => SetupStep == 4;
+    public bool CanGoBack => SetupStep > 1;
+    public bool CanGoNext => SetupStep switch
+    {
+        1 => HasWorkspaces,
+        3 => GptSetupAcknowledged,
+        _ => true,
+    };
+    public string SetupProgress => $"Step {SetupStep} of 4";
+    public string SetupContinueLabel => IsReadyStep ? "Start using bridge" : "Continue";
+    public string SetupStepTitle => SetupStep switch
+    {
+        1 => "Choose the file access boundary",
+        2 => "Connect this machine",
+        3 => "Set up your Custom GPT",
+        _ => "Your bridge is ready",
+    };
+    public string SetupStepDescription => SetupStep switch
+    {
+        1 => "Decide where incoming requests are allowed to work. You can grant the whole machine or keep them inside one folder.",
+        2 => "Tailscale Funnel gives your hosted connector a secure path to this local bridge. You can finish this later if you are only testing locally.",
+        3 => "Open the GPT editor, click Configure, and follow the guided instructions to add the prompt, Code Interpreter capability, Action schema, and bearer authentication.",
+        _ => "The local relay is running in the background. Keep this window minimized; it will ask when a request needs your attention.",
+    };
+    public bool GptSetupAcknowledged
+    {
+        get => _gptSetupAcknowledged;
+        private set
+        {
+            if (SetProperty(ref _gptSetupAcknowledged, value))
+            {
+                OnPropertyChanged(nameof(CanGoNext));
+            }
+        }
+    }
+    public string GptApiToken => _runtime.Settings.GptApiToken;
+    public string GptInstructions => _runtime.GetGptInstructions();
+    public string CustomGptActionUrl => HasCustomGptUrl
+        ? TunnelUrl.TrimEnd('/')
+        : "Connect Tailscale to generate the secure Action URL.";
+    public string CustomGptSchema => _runtime.GetOpenApiJson(HasCustomGptUrl ? TunnelUrl : null);
+    public bool HasCustomGptUrl => !string.IsNullOrWhiteSpace(TunnelUrl);
+    public string GptSetupActionLabel => HasCustomGptUrl ? "I’ve saved the GPT" : "I’ll finish this later";
     public bool HasWorkspaces => Workspaces.Count > 0;
     public bool HasNoWorkspaces => !HasWorkspaces;
     public bool HasActivity => Activity.Count > 0;
@@ -173,12 +273,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
     public bool HasSelectedActivity => SelectedActivity is not null;
     public string SelectedActivityDetail => SelectedActivity?.Detail ?? "The latest request has no additional output.";
     public bool HasBanner => !string.IsNullOrWhiteSpace(Banner);
-    public string SetupHeadline => string.IsNullOrWhiteSpace(RelayUrl)
-        ? "Let’s get your local bridge ready."
-        : "Your local bridge is configured.";
-    public string SetupMessage => string.IsNullOrWhiteSpace(RelayUrl)
-        ? "Add the hosted relay URL, choose a trusted workspace, and connect Tailscale when you’re ready to expose this machine."
-        : "The companion can stay in the background. It will surface approvals and connection problems when they need your attention.";
+    public string SetupHeadline => SetupCompleted
+        ? "Your local bridge is ready."
+        : "Let’s get your local bridge ready.";
+    public string SetupMessage => SetupCompleted
+        ? "The companion can stay in the background. It will surface approvals and connection problems when they need your attention."
+        : "A few quick choices will set the access boundary and the connection this machine uses.";
 
     public async Task InitializeAsync()
     {
@@ -191,6 +291,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
         try
         {
             await _runtime.InitializeAsync();
+            SyncWorkspacesFromRuntime();
+            if (!SetupCompleted && SetupStep == 1 && HasWorkspaces)
+            {
+                SetupStep = 2;
+            }
             _initialized = true;
             Banner = "Local bridge started. You can leave this window open or minimize it.";
         }
@@ -209,19 +314,104 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
         try
         {
             _runtime.AddWorkspace(path);
-            if (!Workspaces.Contains(path, StringComparer.OrdinalIgnoreCase))
-            {
-                Workspaces.Add(_runtime.Settings.TrustedWorkspaces.First(root => string.Equals(root, path, StringComparison.OrdinalIgnoreCase)));
-            }
-
+            SyncWorkspacesFromRuntime();
             CurrentWorkspace = _runtime.Settings.CurrentWorkspace;
-            OnPropertyChanged(nameof(HasWorkspaces));
-            OnPropertyChanged(nameof(HasNoWorkspaces));
             Banner = "Workspace trusted. Requests will stay inside this folder.";
         }
         catch (Exception exception)
         {
             Banner = exception.Message;
+        }
+    }
+
+    private void SyncWorkspacesFromRuntime()
+    {
+        Workspaces.Clear();
+        foreach (var workspace in _runtime.Settings.TrustedWorkspaces)
+        {
+            Workspaces.Add(workspace);
+        }
+
+        OnPropertyChanged(nameof(HasWorkspaces));
+        OnPropertyChanged(nameof(HasNoWorkspaces));
+        OnPropertyChanged(nameof(CanGoNext));
+    }
+
+    private void AdvanceSetup()
+    {
+        if (SetupStep == 1 && !HasWorkspaces)
+        {
+            Banner = "Choose a workspace or allow full access before continuing.";
+            return;
+        }
+
+        if (SetupStep < 4)
+        {
+            SetupStep++;
+            return;
+        }
+
+        _runtime.SetSetupCompleted(true);
+        SetupCompleted = true;
+        Banner = "Setup complete. The bridge is running in the background.";
+    }
+
+    private void RestartSetup()
+    {
+        _runtime.SetSetupCompleted(false);
+        SetupCompleted = false;
+        SetupStep = HasWorkspaces ? 2 : 1;
+        GptSetupAcknowledged = false;
+        Banner = "Setup is ready to walk through again.";
+    }
+
+    private void AcknowledgeGptSetup()
+    {
+        GptSetupAcknowledged = true;
+        Banner = HasCustomGptUrl
+            ? "Custom GPT setup marked complete. Continue when you have saved it in ChatGPT."
+            : "Custom GPT setup will be ready after Tailscale is connected. You can finish it from setup again.";
+    }
+
+    private void OpenGptBuilder()
+    {
+        if (!_processLauncher.Open("https://chatgpt.com/gpts/editor"))
+        {
+            Banner = "Could not open the ChatGPT GPT builder in your browser.";
+        }
+    }
+
+    private async Task GrantFullAccessAsync()
+    {
+        var handler = FullAccessRequested;
+        if (handler is null || !await handler())
+        {
+            return;
+        }
+
+        SetBusy(true);
+        try
+        {
+            _runtime.GrantFullAccess();
+            SyncWorkspacesFromRuntime();
+            CurrentWorkspace = _runtime.Settings.CurrentWorkspace;
+            Banner = "Full access enabled. Requests can work across this machine.";
+
+            // Full access completes the first wizard step. Move forward only
+            // after the permission dialog was confirmed and the runtime grant
+            // succeeded; failed or cancelled requests remain on this step.
+            if (!SetupCompleted && SetupStep == 1)
+            {
+                SetupStep = 2;
+            }
+        }
+        catch (Exception exception)
+        {
+            Banner = $"Could not enable full access: {exception.Message}";
+        }
+        finally
+        {
+            SetBusy(false);
         }
     }
 
@@ -236,31 +426,20 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
         await _runtime.DisposeAsync();
     }
 
-    private async Task SaveSettingsAsync()
-    {
-        SetBusy(true);
-        try
-        {
-            _runtime.SetRelayUrl(RelayUrl);
-            await _runtime.ReconnectAsync();
-            Banner = "Settings saved. The relay connection is refreshing now.";
-        }
-        catch (Exception exception)
-        {
-            Banner = $"Could not save settings: {exception.Message}";
-        }
-        finally
-        {
-            SetBusy(false);
-        }
-    }
-
     private async Task ConnectTailscaleAsync()
     {
         SetBusy(true);
         try
         {
-            await _runtime.StartTunnelAsync();
+            var publicUrl = await _runtime.StartTunnelAsync();
+
+            // A URL is returned only once Funnel is actually running. This
+            // keeps the wizard on the Tailscale step for login, admin, or
+            // Funnel-approval flows that still need user action.
+            if (!SetupCompleted && SetupStep == 2 && !string.IsNullOrWhiteSpace(publicUrl))
+            {
+                SetupStep = 3;
+            }
         }
         catch (Exception exception)
         {
@@ -308,10 +487,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
         {
             switch (status.Area)
             {
-                case "relay":
-                    RelayState = status.State;
-                    RelayMessage = status.Message;
-                    break;
                 case "local-relay":
                     LocalRelayState = status.State;
                     LocalRelayMessage = status.Message;
@@ -319,6 +494,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
                 case "tunnel":
                     TunnelState = status.State;
                     TunnelMessage = status.Message;
+                    TunnelUrl = string.Equals(status.State, "running", StringComparison.OrdinalIgnoreCase) &&
+                                Uri.TryCreate(status.Message, UriKind.Absolute, out var tunnelUri) &&
+                                string.Equals(tunnelUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
+                        ? status.Message.TrimEnd('/')
+                        : string.Empty;
+                    OnPropertyChanged(nameof(HasCustomGptUrl));
+                    OnPropertyChanged(nameof(CustomGptActionUrl));
+                    OnPropertyChanged(nameof(CustomGptSchema));
+                    OnPropertyChanged(nameof(GptSetupActionLabel));
+
+                    // Status updates also cover a Funnel that was already running
+                    // or became ready during background polling.
+                    if (!SetupCompleted && SetupStep == 2 &&
+                        string.Equals(status.State, "running", StringComparison.OrdinalIgnoreCase))
+                    {
+                        SetupStep = 3;
+                    }
                     break;
             }
 
@@ -375,11 +567,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
     private void SetBusy(bool value)
     {
         IsBusy = value;
-        if (SaveCommand is AsyncCommand save)
-        {
-            save.RaiseCanExecuteChanged();
-        }
-
         if (ConnectTailscaleCommand is AsyncCommand connect)
         {
             connect.RaiseCanExecuteChanged();
@@ -393,6 +580,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged, IAsyncDisposab
         if (StopTailscaleCommand is AsyncCommand stop)
         {
             stop.RaiseCanExecuteChanged();
+        }
+
+        if (FullAccessCommand is AsyncCommand fullAccess)
+        {
+            fullAccess.RaiseCanExecuteChanged();
         }
     }
 

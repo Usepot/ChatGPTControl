@@ -24,6 +24,7 @@ public partial class MainWindow : Window
         _viewModel.WorkspacePickerRequested += OnWorkspacePickerRequested;
         _viewModel.CopyRequested += OnCopyRequested;
         _viewModel.ApprovalDialogRequested += OnApprovalDialogRequested;
+        _viewModel.FullAccessRequested += OnFullAccessRequested;
     }
 
     private async void OnOpened(object? sender, EventArgs e)
@@ -53,6 +54,16 @@ public partial class MainWindow : Window
     private async Task<bool> OnApprovalDialogRequested(PortableCodex.Native.Models.ToolRequest request, string summary)
     {
         var dialog = new ApprovalWindow(summary);
+        return await dialog.ShowDialog<bool?>(this) == true;
+    }
+
+    private async Task<bool> OnFullAccessRequested()
+    {
+        var dialog = new ApprovalWindow(
+            "Allow full file access?",
+            "The companion will be able to read and change files anywhere on this machine.",
+            "Use this when requests should work across your whole computer. Write approvals can still stay on for an extra confirmation before changes.",
+            "Allow full access");
         return await dialog.ShowDialog<bool?>(this) == true;
     }
 

@@ -61,7 +61,7 @@ public sealed partial class MainViewModel
         {
             var psi = new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "https://chatgpt.com",
+                FileName = "https://chatgpt.com/gpts/editor",
                 UseShellExecute = true,
             };
             System.Diagnostics.Process.Start(psi);

@@ -70,6 +70,7 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _requireApprovalForWrites;
     private bool _multithreadedFileSearches;
     private bool _isDarkMode = true;
+    private bool _setupCompleted;
     private string _chatGptPinnedUrl = ChatGptProjectViewModel.DefaultProjectUrl;
     private bool _isNormalizingTrustedWorkspaces;
 

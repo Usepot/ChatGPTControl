@@ -117,17 +117,19 @@
 
             <!-- Legacy GPT flow instructions -->
             <StackPanel Visibility="{Binding IsLegacyIntegrationSelected, Converter={StaticResource BoolToVis}}">
-                <TextBlock Text="SETUP STEPS" Style="{StaticResource SectionLabel}" Margin="0,0,0,18" />
+                <TextBlock Text="SET UP YOUR CUSTOM GPT" Style="{StaticResource SectionLabel}" Margin="0,0,0,10" />
+                <TextBlock FontSize="13" Foreground="{DynamicResource MutedFg}" TextWrapping="Wrap" LineHeight="20" Margin="0,0,0,20"
+                           Text="Follow these steps in order. The values you need to paste are ready below, with a copy button beside each one." />
 
-                <DockPanel Margin="0,0,0,16">
+                <DockPanel Margin="0,0,0,18">
                     <Grid DockPanel.Dock="Left" Style="{StaticResource StepCircle}">
                         <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="1" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Grid>
                     <StackPanel>
                         <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" TextWrapping="Wrap">
-                            <Run>Go to</Run> <Run FontWeight="SemiBold">GPTs → Create → Configure</Run>
+                            <Run>Open</Run> <Run FontWeight="SemiBold">https://chatgpt.com/gpts/editor</Run> <Run>and click</Run> <Run FontWeight="SemiBold">Configure</Run><Run>.</Run>
                         </TextBlock>
-                        <ui:Button Appearance="Transparent" HorizontalAlignment="Left" Margin="0,6,0,0" FontSize="12" Content="Open ChatGPT →" Command="{Binding OpenGptBuilderCommand}" />
+                        <ui:Button Appearance="Transparent" HorizontalAlignment="Left" Margin="0,6,0,0" FontSize="12" Content="Open GPT editor →" Command="{Binding OpenGptBuilderCommand}" />
                     </StackPanel>
                 </DockPanel>
 
@@ -136,20 +138,59 @@
                         <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="2" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Grid>
                     <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" TextWrapping="Wrap" VerticalAlignment="Center">
-                        <Run>Paste the system prompt into</Run> <Run FontWeight="SemiBold">Instructions</Run>
+                        <Run>Paste the system prompt into</Run> <Run FontWeight="SemiBold">Instructions</Run><Run>:</Run>
+                    </TextBlock>
+                </DockPanel>
+                <Grid Margin="38,0,0,18">
+                    <TextBox Style="{StaticResource CodeBox}" MaxHeight="180" VerticalScrollBarVisibility="Auto" Text="{Binding GptInstructions, Mode=OneWay}" />
+                    <ui:Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" Appearance="Transparent" FontSize="11" Content="{Binding InstructionsCopiedLabel}" Command="{Binding CopyInstructionsCommand}" />
+                </Grid>
+
+                <DockPanel Margin="0,0,0,18">
+                    <Grid DockPanel.Dock="Left" Style="{StaticResource StepCircle}">
+                        <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="3" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" TextWrapping="Wrap" VerticalAlignment="Center">
+                        <Run>Under</Run> <Run FontWeight="SemiBold">Capabilities</Run><Run>, click</Run> <Run FontWeight="SemiBold">Code Interpreter</Run><Run>.</Run>
                     </TextBlock>
                 </DockPanel>
 
-                <ui:CardExpander Margin="0,8,0,0" IsExpanded="False">
-                    <ui:CardExpander.Header>
-                        <DockPanel>
-                            <TextBlock DockPanel.Dock="Left" FontSize="12" Foreground="{DynamicResource MutedFg}" VerticalAlignment="Center" Text="System prompt" />
-                            <ui:Button DockPanel.Dock="Right" Appearance="Transparent" FontSize="11" Content="{Binding InstructionsCopiedLabel}" Command="{Binding CopyInstructionsCommand}" />
-                            <TextBlock />
-                        </DockPanel>
-                    </ui:CardExpander.Header>
-                    <TextBox Style="{StaticResource CodeBox}" Background="Transparent" BorderThickness="0" MaxHeight="250" Padding="14,12" VerticalScrollBarVisibility="Auto" Text="{Binding GptInstructions, Mode=OneWay}" />
-                </ui:CardExpander>
+                <DockPanel Margin="0,0,0,8">
+                    <Grid DockPanel.Dock="Left" Style="{StaticResource StepCircle}">
+                        <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="4" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" TextWrapping="Wrap" VerticalAlignment="Center">
+                        <Run>Under</Run> <Run FontWeight="SemiBold">Actions</Run><Run>, click</Run> <Run FontWeight="SemiBold">Create new action</Run><Run>, then paste this schema:</Run>
+                    </TextBlock>
+                </DockPanel>
+                <Grid Margin="38,0,0,18">
+                    <TextBox Style="{StaticResource CodeBox}" MaxHeight="190" VerticalScrollBarVisibility="Auto" Text="{Binding MinifiedOpenApiSchema, Mode=OneWay}" />
+                    <ui:Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" Appearance="Transparent" FontSize="11" Content="{Binding SchemaCopiedLabel}" Command="{Binding CopySchemaCommand}" />
+                </Grid>
+
+                <DockPanel Margin="0,0,0,8">
+                    <Grid DockPanel.Dock="Left" Style="{StaticResource StepCircle}">
+                        <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="5" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" TextWrapping="Wrap" VerticalAlignment="Center">
+                        <Run>Click</Run> <Run FontWeight="SemiBold">Authentication</Run><Run>, click</Run> <Run FontWeight="SemiBold">API key</Run><Run>, and paste the API key below:</Run>
+                    </TextBlock>
+                </DockPanel>
+                <Grid Margin="38,0,0,8">
+                    <TextBox Style="{StaticResource CodeBox}" Text="{Binding GptApiToken, Mode=OneWay}" />
+                    <ui:Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,6,6,0" Appearance="Transparent" FontSize="11" Content="{Binding TokenCopiedLabel}" Command="{Binding CopyAuthTokenCommand}" />
+                </Grid>
+                <TextBlock FontSize="11.5" Foreground="{DynamicResource TertiaryFg}" Margin="38,0,0,18" TextWrapping="Wrap"
+                           Text="After pasting the key, click Bearer as the authentication type." />
+
+                <DockPanel Margin="0,0,0,4">
+                    <Grid DockPanel.Dock="Left" Style="{StaticResource StepCircle}">
+                        <Ellipse Fill="{DynamicResource AccentBrush}" /><TextBlock Text="6" FontSize="11" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock FontSize="13" Foreground="{DynamicResource PrimaryFg}" TextWrapping="Wrap" VerticalAlignment="Center">
+                        <Run>Save or create the GPT, then continue to add trusted workspaces.</Run>
+                    </TextBlock>
+                </DockPanel>
             </StackPanel>
 
         </StackPanel>

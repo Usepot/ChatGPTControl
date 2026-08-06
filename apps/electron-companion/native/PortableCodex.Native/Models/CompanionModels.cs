@@ -34,6 +34,8 @@ public sealed class CompanionSettings
 
     public bool RequireApprovalForWrites { get; set; }
 
+    public bool SetupCompleted { get; set; }
+
     public bool MultithreadedFileSearches { get; set; }
 
     public bool IsDarkMode { get; set; } = true;

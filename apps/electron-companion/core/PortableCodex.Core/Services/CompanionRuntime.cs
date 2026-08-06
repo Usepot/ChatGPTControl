@@ -51,7 +51,7 @@ public sealed class CompanionRuntime : IAsyncDisposable
             status => StatusChanged?.Invoke(new CompanionStatus("local-relay", status.State, status.Message)),
             OnRelayTerminalDispatch);
         _relayClientService = new RelayClientService(
-            () => Settings,
+            GetRelayConnectionSettings,
             HandleToolRequestAsync,
             status => StatusChanged?.Invoke(new CompanionStatus("relay", status.State, status.Message)));
         _tunnelProvider = tunnelProvider ?? new TunnelServiceAdapter(new TunnelService(status =>
@@ -121,6 +121,10 @@ public sealed class CompanionRuntime : IAsyncDisposable
     public Task InstallTailscaleAsync() => _tunnelProvider.InstallAsync();
 
     public IReadOnlyList<SkillListEntry> GetSkills() => _skillService.GetSkillList(Settings);
+
+    public string GetGptInstructions() => RelayContentService.GptInstructions;
+
+    public string GetOpenApiJson(string? relayUrl) => _relayContentService.GetOpenApiJson(relayUrl);
 
     public void AddWorkspace(string workspaceRoot)
     {
@@ -195,12 +199,65 @@ public sealed class CompanionRuntime : IAsyncDisposable
         Save();
     }
 
+    public IReadOnlyList<string> GrantFullAccess()
+    {
+        var roots = GetSystemRoots()
+            .Where(Directory.Exists)
+            .Select(_pathPolicy.NormalizeWorkspaceRoot)
+            .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
+            .ToList();
+
+        lock (_sync)
+        {
+            foreach (var root in roots)
+            {
+                if (!Settings.TrustedWorkspaces.Contains(root, OperatingSystem.IsWindows()
+                        ? StringComparer.OrdinalIgnoreCase
+                        : StringComparer.Ordinal))
+                {
+                    Settings.TrustedWorkspaces.Add(root);
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(Settings.CurrentWorkspace))
+            {
+                Settings.CurrentWorkspace = roots.FirstOrDefault() ?? string.Empty;
+            }
+        }
+
+        Save();
+        return Settings.TrustedWorkspaces.ToArray();
+    }
+
+    public void SetSetupCompleted(bool completed)
+    {
+        Settings.SetupCompleted = completed;
+        Save();
+    }
+
     public void Save()
     {
         lock (_sync)
         {
             _settingsStore.Save(_state);
         }
+    }
+
+    private CompanionSettings GetRelayConnectionSettings()
+    {
+        var settings = Settings;
+        if (!string.IsNullOrWhiteSpace(settings.RelayUrl))
+        {
+            return settings;
+        }
+
+        return new CompanionSettings
+        {
+            RelayUrl = $"http://127.0.0.1:{LocalRelayPort}",
+            DeviceId = settings.DeviceId,
+            DeviceToken = settings.DeviceToken,
+            DeviceName = settings.DeviceName,
+        };
     }
 
     private void ImportConfiguredRoots()
@@ -230,6 +287,23 @@ public sealed class CompanionRuntime : IAsyncDisposable
         if (string.IsNullOrWhiteSpace(Settings.CurrentWorkspace))
         {
             Settings.CurrentWorkspace = Settings.TrustedWorkspaces.FirstOrDefault() ?? string.Empty;
+        }
+    }
+
+    private static IEnumerable<string> GetSystemRoots()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            yield return Path.GetPathRoot(Environment.CurrentDirectory) ?? Path.DirectorySeparatorChar.ToString();
+            yield break;
+        }
+
+        foreach (var drive in DriveInfo.GetDrives())
+        {
+            if (drive.IsReady)
+            {
+                yield return drive.RootDirectory.FullName;
+            }
         }
     }
 

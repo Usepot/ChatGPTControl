@@ -40,6 +40,7 @@ public sealed partial class MainViewModel
             _requireApprovalForWrites = false;
             _multithreadedFileSearches = settings.MultithreadedFileSearches;
             _isDarkMode = settings.IsDarkMode;
+            _setupCompleted = settings.SetupCompleted;
             _chatGptPinnedUrl = ResolvePersistedChatGptPinnedUrl(settings);
 
             TrustedWorkspaces.Clear();
@@ -132,6 +133,7 @@ public sealed partial class MainViewModel
             SkillRoots = SkillRoots.ToList(),
             ImportCodexCliSkills = ImportCodexCliSkills,
             RequireApprovalForWrites = false,
+            SetupCompleted = _setupCompleted,
             MultithreadedFileSearches = MultithreadedFileSearches,
             IsDarkMode = IsDarkMode,
             ChatGptPinnedUrl = ChatGptPinnedUrl,

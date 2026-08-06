@@ -8,8 +8,8 @@
         Title="Portable Codex"
         Background="#0D0F14"
         WindowStartupLocation="CenterScreen">
-  <Grid ColumnDefinitions="310,*">
-    <Border Grid.Column="0" Background="#13161D" BorderBrush="#242731" BorderThickness="0,0,1,0" Padding="26,30">
+  <Grid ColumnDefinitions="286,*">
+    <Border Grid.Column="0" Background="#13161D" BorderBrush="#242731" BorderThickness="0,0,1,0" Padding="24,28">
       <Grid RowDefinitions="Auto,Auto,*,Auto">
         <StackPanel Grid.Row="0" Spacing="7">
           <TextBlock Text="PORTABLE CODEX" FontSize="11" FontWeight="Bold" Foreground="#E89A63" LetterSpacing="1.5" />
@@ -17,7 +17,7 @@
           <TextBlock Text="A calm place to configure the machine that ChatGPT can reach." Classes="muted" TextWrapping="Wrap" LineHeight="18" />
         </StackPanel>
 
-        <Border Grid.Row="1" Classes="surface" Padding="16" Margin="0,30,0,0">
+        <Border Grid.Row="1" Classes="surface" Padding="16" Margin="0,28,0,0">
           <StackPanel Spacing="14">
             <TextBlock Text="Connection" Classes="section-title" />
             <StackPanel Spacing="12">
@@ -27,13 +27,6 @@
                   <TextBlock Text="Local relay" FontWeight="SemiBold" />
                 </StackPanel>
                 <TextBlock Text="{Binding LocalRelayMessage}" Classes="muted" TextWrapping="Wrap" />
-              </StackPanel>
-              <StackPanel Spacing="5">
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Ellipse Width="8" Height="8" Fill="#E89A63" VerticalAlignment="Center" />
-                  <TextBlock Text="Relay" FontWeight="SemiBold" />
-                </StackPanel>
-                <TextBlock Text="{Binding RelayMessage}" Classes="muted" TextWrapping="Wrap" />
               </StackPanel>
               <StackPanel Spacing="5">
                 <StackPanel Orientation="Horizontal" Spacing="8">
@@ -62,35 +55,184 @@
             <TextBlock Text="{Binding SetupHeadline}" Classes="title" />
             <TextBlock Text="{Binding SetupMessage}" Classes="muted" FontSize="14" TextWrapping="Wrap" MaxWidth="720" />
           </StackPanel>
-          <Button Grid.Column="1" Classes="secondary" Content="Save settings" Command="{Binding SaveCommand}" VerticalAlignment="Top" />
+          <Button Grid.Column="1" Classes="secondary" Content="Run setup again" Command="{Binding RestartSetupCommand}" IsVisible="{Binding IsDashboardVisible}" VerticalAlignment="Top" />
         </Grid>
 
-        <Border Classes="surface" Padding="22">
+        <Border Classes="surface" Padding="28" IsVisible="{Binding IsWizardVisible}">
           <StackPanel Spacing="24">
-            <StackPanel Spacing="18">
-              <StackPanel Spacing="5">
-                <TextBlock Text="Relay endpoint" Classes="section-title" />
-                <TextBlock Text="The hosted relay receives authenticated requests and forwards them to this device." Classes="muted" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Grid.Column="0" Spacing="5">
+                <TextBlock Text="{Binding SetupProgress}" Classes="mono" Foreground="#E89A63" />
+                <TextBlock Text="{Binding SetupStepTitle}" Classes="section-title" FontSize="21" />
               </StackPanel>
-              <TextBox Text="{Binding RelayUrl, Mode=TwoWay}" Watermark="https://your-relay.example.com" />
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
-                <StackPanel Grid.Column="0" Spacing="5">
-                  <TextBlock Text="Write approvals" Classes="section-title" FontSize="13" />
-                  <TextBlock Text="Ask before commands and file changes. Keep this on while you are setting up." Classes="muted" TextWrapping="Wrap" />
-                </StackPanel>
-                <ToggleSwitch Grid.Column="1" IsChecked="{Binding RequireApproval}" VerticalAlignment="Center" />
-              </Grid>
-              <TextBlock Text="{Binding Banner}" Foreground="#F4BC7B" TextWrapping="Wrap" IsVisible="{Binding HasBanner}" />
+              <TextBlock Grid.Column="1" Text="1  Access   ·   2  Tailscale   ·   3  GPT   ·   4  Ready" Classes="muted" VerticalAlignment="Center" />
+            </Grid>
+            <TextBlock Text="{Binding SetupStepDescription}" Classes="muted" FontSize="14" TextWrapping="Wrap" MaxWidth="760" />
+
+            <StackPanel IsVisible="{Binding IsAccessStep}" Spacing="18">
+              <StackPanel Spacing="5">
+                <TextBlock Text="Choose how much of this machine requests can reach." Classes="section-title" />
+                <TextBlock Text="Full access is convenient for a personal developer machine. A single trusted folder is the safer default for shared or sensitive computers." Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="primary" Content="Full access" Command="{Binding FullAccessCommand}" />
+                <Button Classes="secondary" Content="Choose a workspace" Command="{Binding AddWorkspaceCommand}" />
+              </StackPanel>
+              <StackPanel IsVisible="{Binding HasWorkspaces}" Spacing="5">
+                <TextBlock Text="Trusted now" Classes="muted" />
+                <ItemsControl ItemsSource="{Binding Workspaces}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding}" Classes="mono" TextWrapping="Wrap" Margin="0,0,0,5" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+              <TextBlock Text="Nothing is trusted yet. Choose a folder or grant full access to continue." Classes="muted" IsVisible="{Binding HasNoWorkspaces}" />
             </StackPanel>
 
-            <StackPanel Spacing="16">
+            <StackPanel IsVisible="{Binding IsTunnelStep}" Spacing="18">
               <StackPanel Spacing="5">
-                <TextBlock Text="Trusted workspaces" Classes="section-title" />
-                <TextBlock Text="Only these folders can be read or changed by incoming tool requests." Classes="muted" TextWrapping="Wrap" />
+                <TextBlock Text="Expose the local bridge when you need remote requests." Classes="section-title" />
+                <TextBlock Text="Tailscale Funnel is optional for local testing, but it is the secure path for a hosted connector to reach this machine." Classes="muted" TextWrapping="Wrap" />
               </StackPanel>
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                <ComboBox Grid.Column="0" ItemsSource="{Binding Workspaces}" SelectedItem="{Binding CurrentWorkspace, Mode=TwoWay}" PlaceholderText="Choose a current workspace" />
-                <Button Grid.Column="1" Classes="primary" Content="Add folder" Command="{Binding AddWorkspaceCommand}" />
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="secondary" Content="Connect Tailscale" Command="{Binding ConnectTailscaleCommand}" />
+                <Button Classes="ghost" Content="Install Tailscale" Command="{Binding InstallTailscaleCommand}" />
+                <Button Classes="ghost" Content="Stop" Command="{Binding StopTailscaleCommand}" />
+              </StackPanel>
+              <TextBlock Text="{Binding TunnelMessage}" Classes="mono" TextWrapping="Wrap" />
+              <TextBlock Text="If Tailscale needs sign-in, system-extension approval, or Funnel approval, the companion will guide you to the next step." Classes="muted" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <StackPanel IsVisible="{Binding IsGptStep}" Spacing="18">
+              <StackPanel Spacing="5">
+                <TextBlock Text="Set up your Custom GPT" Classes="section-title" />
+                <TextBlock Text="Follow this order in the GPT editor. Portable Codex provides every value you need to copy; you only need to click through Configure." Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+              <Button Classes="secondary" Content="Open GPT editor" Command="{Binding OpenGptBuilderCommand}" HorizontalAlignment="Left" />
+
+              <Border Classes="subtle-surface" Padding="18">
+                <StackPanel Spacing="20">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <Border Width="26" Height="26" CornerRadius="13" Background="#E89A63" VerticalAlignment="Top">
+                      <TextBlock Text="1" Foreground="#25170F" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="5">
+                      <TextBlock Text="Open the editor and click Configure" Classes="section-title" FontSize="13" />
+                      <TextBlock Text="The Open GPT editor button takes you to https://chatgpt.com/gpts/editor. If the builder opens on the Create tab, select Configure to show the settings." Classes="muted" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Grid>
+
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <Border Width="26" Height="26" CornerRadius="13" Background="#E89A63" VerticalAlignment="Top">
+                      <TextBlock Text="2" Foreground="#25170F" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="7">
+                      <TextBlock Text="Paste the system prompt" Classes="section-title" FontSize="13" />
+                      <TextBlock Text="In Configure, paste this into the Instructions field." Classes="muted" TextWrapping="Wrap" />
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <TextBox Grid.Column="0" Text="{Binding GptInstructions, Mode=OneWay}" Classes="mono" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="150" />
+                        <Button Grid.Column="1" Classes="ghost" Content="Copy prompt" Command="{Binding CopyGptInstructionsCommand}" VerticalAlignment="Top" />
+                      </Grid>
+                    </StackPanel>
+                  </Grid>
+
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <Border Width="26" Height="26" CornerRadius="13" Background="#E89A63" VerticalAlignment="Top">
+                      <TextBlock Text="3" Foreground="#25170F" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="5">
+                      <TextBlock Text="Turn on Code Interpreter" Classes="section-title" FontSize="13" />
+                      <TextBlock Text="Under Capabilities, click Code Interpreter so the GPT can work with files and generated output." Classes="muted" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </Grid>
+
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <Border Width="26" Height="26" CornerRadius="13" Background="#E89A63" VerticalAlignment="Top">
+                      <TextBlock Text="4" Foreground="#25170F" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="7">
+                      <TextBlock Text="Create a new Action and paste the schema" Classes="section-title" FontSize="13" />
+                      <TextBlock Text="Under Actions, click Create new action, then paste this OpenAPI schema into the Schema field. The schema already includes the secure relay URL below." Classes="muted" TextWrapping="Wrap" />
+                      <TextBox Text="{Binding CustomGptActionUrl, Mode=OneWay}" Classes="mono" IsReadOnly="True" />
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <TextBox Grid.Column="0" Text="{Binding CustomGptSchema, Mode=OneWay}" Classes="mono" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="170" />
+                        <Button Grid.Column="1" Classes="ghost" Content="Copy schema" Command="{Binding CopyGptSchemaCommand}" IsEnabled="{Binding HasCustomGptUrl}" VerticalAlignment="Top" />
+                      </Grid>
+                    </StackPanel>
+                  </Grid>
+
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <Border Width="26" Height="26" CornerRadius="13" Background="#E89A63" VerticalAlignment="Top">
+                      <TextBlock Text="5" Foreground="#25170F" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="7">
+                      <TextBlock Text="Configure authentication" Classes="section-title" FontSize="13" />
+                      <TextBlock Text="Click Authentication, click API key, paste the API key below, then click Bearer as the authentication type." Classes="muted" TextWrapping="Wrap" />
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <TextBox Grid.Column="0" Text="{Binding GptApiToken, Mode=OneWay}" Classes="mono" IsReadOnly="True" />
+                        <Button Grid.Column="1" Classes="ghost" Content="Copy API key" Command="{Binding CopyGptTokenCommand}" VerticalAlignment="Top" />
+                      </Grid>
+                    </StackPanel>
+                  </Grid>
+
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                    <Border Width="26" Height="26" CornerRadius="13" Background="#E89A63" VerticalAlignment="Top">
+                      <TextBlock Text="6" Foreground="#25170F" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="Save or Create the GPT. Then return here and continue to add trusted workspaces." Classes="section-title" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="secondary" Content="{Binding GptSetupActionLabel}" Command="{Binding AcknowledgeGptSetupCommand}" />
+                <TextBlock Text="Ready to continue." Classes="muted" VerticalAlignment="Center" IsVisible="{Binding GptSetupAcknowledged}" />
+              </StackPanel>
+            </StackPanel>
+
+            <StackPanel IsVisible="{Binding IsReadyStep}" Spacing="18">
+              <StackPanel Spacing="5">
+                <TextBlock Text="The bridge is ready to stay in the background." Classes="section-title" />
+                <TextBlock Text="You can change these choices later from the dashboard. Incoming requests will stay inside the access boundary you selected." Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="12">
+                <Ellipse Grid.Row="0" Width="8" Height="8" Fill="#77D19B" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding LocalRelayMessage}" Classes="muted" TextWrapping="Wrap" />
+                <Ellipse Grid.Row="1" Width="8" Height="8" Fill="#B79BF7" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TunnelMessage}" Classes="muted" TextWrapping="Wrap" />
+                <Ellipse Grid.Row="2" Width="8" Height="8" Fill="#E89A63" VerticalAlignment="Center" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding CurrentWorkspace}" Classes="mono" TextWrapping="Wrap" />
+              </Grid>
+            </StackPanel>
+
+            <TextBlock Text="{Binding Banner}" Foreground="#F4BC7B" TextWrapping="Wrap" IsVisible="{Binding HasBanner}" />
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+              <Button Grid.Column="1" Content="Back" Classes="ghost" Command="{Binding BackSetupCommand}" IsVisible="{Binding CanGoBack}" />
+              <Button Grid.Column="2" Content="{Binding SetupContinueLabel}" Classes="primary" Command="{Binding NextSetupCommand}" IsEnabled="{Binding CanGoNext}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="surface" Padding="22" IsVisible="{Binding IsDashboardVisible}">
+          <StackPanel Spacing="24">
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="5">
+                <TextBlock Text="Bridge status" Classes="section-title" />
+                <TextBlock Text="The companion stays quiet while it is healthy and surfaces approvals or connection problems when they need you." Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+              <TextBlock Grid.Column="1" Text="{Binding LocalRelayState}" Classes="mono" VerticalAlignment="Center" />
+            </Grid>
+
+            <StackPanel Spacing="16">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                <StackPanel Spacing="5">
+                  <TextBlock Text="Trusted workspaces" Classes="section-title" />
+                  <TextBlock Text="Only these folders can be read or changed by incoming tool requests." Classes="muted" TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1" Classes="secondary" Content="Full access" Command="{Binding FullAccessCommand}" />
+                <Button Grid.Column="2" Classes="primary" Content="Add folder" Command="{Binding AddWorkspaceCommand}" />
               </Grid>
               <ItemsControl ItemsSource="{Binding Workspaces}" IsVisible="{Binding HasWorkspaces}">
                 <ItemsControl.ItemTemplate>
@@ -125,7 +267,7 @@
                   <TextBlock Text="Recent activity" Classes="section-title" />
                   <TextBlock Text="Requests are quiet when the bridge is healthy. They appear here when ChatGPT uses a tool." Classes="muted" TextWrapping="Wrap" />
                 </StackPanel>
-                <TextBlock Grid.Column="1" Text="{Binding RelayState}" Classes="mono" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding LocalRelayState}" Classes="mono" VerticalAlignment="Center" />
               </Grid>
               <ItemsControl ItemsSource="{Binding Activity}" IsVisible="{Binding HasActivity}">
                 <ItemsControl.ItemTemplate>
