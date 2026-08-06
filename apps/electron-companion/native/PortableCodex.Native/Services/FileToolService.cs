@@ -5,9 +5,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Windows.Forms;
 using PortableCodex.Native.Models;
 using PortableCodex.Native.Utils;
 
@@ -86,12 +83,20 @@ public sealed partial class FileToolService
 
             if (request.Tool == "click_desktop")
             {
+#if PORTABLE_CORE
+                return UnsupportedPlatform(request.RequestId, "click_desktop is not available in the cross-platform core yet");
+#else
                 return await HandleClickDesktopAsync(request, context, cancellationToken);
+#endif
             }
 
             if (request.Tool is "view_desktop" or "screenshot_desktop")
             {
+#if PORTABLE_CORE
+                return UnsupportedPlatform(request.RequestId, "view_desktop is not available in the cross-platform core yet");
+#else
                 return await HandleScreenshotDesktopAsync(request, context, cancellationToken);
+#endif
             }
 
             if (string.IsNullOrWhiteSpace(request.WorkspaceRoot))

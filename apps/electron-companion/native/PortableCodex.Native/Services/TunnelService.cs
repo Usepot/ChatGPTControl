@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using PortableCodex.Native.Models;
 
@@ -179,54 +178,8 @@ public sealed partial class TunnelService : IDisposable
                 FirstNonEmptyLine(result.Stderr, result.Stdout) ?? "Unable to query Tailscale status.");
         }
 
-        try
-        {
-            using var doc = JsonDocument.Parse(result.Stdout);
-            var root = doc.RootElement;
-            var backendState = root.TryGetProperty("BackendState", out var stateElement)
-                ? stateElement.GetString()
-                : null;
-            if (!string.Equals(backendState, "Running", StringComparison.OrdinalIgnoreCase))
-            {
-                var message = string.Equals(backendState, "NeedsMachineAuth", StringComparison.OrdinalIgnoreCase)
-                    ? "Approve this device in your Tailscale admin console, then click Connect to Tailscale."
-                    : "Sign in to Tailscale and make sure this device joins your tailnet.";
-                return new TailscaleReadiness(false, "login_required", message);
-            }
-
-            var deviceDnsName = string.Empty;
-            if (root.TryGetProperty("Self", out var self) &&
-                self.ValueKind == JsonValueKind.Object &&
-                self.TryGetProperty("DNSName", out var dnsNameElement))
-            {
-                deviceDnsName = NormalizeTsNetHost(dnsNameElement.GetString());
-            }
-
-            if (string.IsNullOrWhiteSpace(deviceDnsName))
-            {
-                return new TailscaleReadiness(
-                    false,
-                    "login_required",
-                    "Tailscale is running but this device is not fully joined to a tailnet yet.");
-            }
-
-            return new TailscaleReadiness(true, "starting", "Tailscale ready", deviceDnsName);
-        }
-        catch (JsonException)
-        {
-            if (LooksLikeLoginRequired(output))
-            {
-                return new TailscaleReadiness(
-                    false,
-                    "login_required",
-                    "Sign in to Tailscale and make sure this device joins your tailnet.");
-            }
-
-            return new TailscaleReadiness(
-                false,
-                "error",
-                "Tailscale returned an unexpected status format.");
-        }
+        var parsed = TailscaleStatusParser.ParseStatus(result.Stdout);
+        return new TailscaleReadiness(parsed.Ready, parsed.State, parsed.Message, parsed.DeviceDnsName);
     }
 
     private async Task<FunnelStartResult> StartFunnelAndResolveUrlAsync(string exe, int localPort, string deviceDnsName)
@@ -315,21 +268,16 @@ public sealed partial class TunnelService : IDisposable
     {
         var statusResult = await RunTailscaleCommandAsync(exe, "funnel status --json", createNoWindow: true);
         var statusOutput = string.Join(Environment.NewLine, statusResult.Stdout, statusResult.Stderr);
-        var url = ExtractTsNetUrl(statusOutput);
+        var url = TailscaleStatusParser.FindFunnelUrl(statusOutput, fallbackHost);
         if (!string.IsNullOrWhiteSpace(url))
         {
             return url;
         }
 
-        if (statusResult.ExitCode == 0 &&
-            !string.IsNullOrWhiteSpace(fallbackHost) &&
-            statusOutput.Contains(fallbackHost, StringComparison.OrdinalIgnoreCase))
-        {
-            return $"https://{fallbackHost}";
-        }
-
         var textResult = await RunTailscaleCommandAsync(exe, "funnel status", createNoWindow: true);
-        return ExtractTsNetUrl(textResult.Stdout, textResult.Stderr);
+        return TailscaleStatusParser.FindFunnelUrl(
+            string.Join(Environment.NewLine, textResult.Stdout, textResult.Stderr),
+            fallbackHost);
     }
 
     private async Task DisableFunnelAsync(string exe)
@@ -468,8 +416,24 @@ public sealed partial class TunnelService : IDisposable
 
     public async Task InstallTailscaleAsync()
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            var downloadUrl = OperatingSystem.IsMacOS()
+                ? "https://tailscale.com/download/mac"
+                : "https://tailscale.com/download";
+            SetStatus(
+                "starting",
+                OperatingSystem.IsMacOS()
+                    ? "Opening Tailscale’s official macOS installer. Finish installation, then return here."
+                    : "Opening Tailscale’s official installer. Finish installation, then return here.");
+            OpenUrl(downloadUrl);
+            await Task.Delay(250);
+            SetStatus("login_required", "Tailscale installer opened. Sign in, then click Connect to Tailscale again.");
+            return;
+        }
+
         SetStatus("starting", "Downloading Tailscale installer...");
-        
+
         try
         {
             var installerPath = Path.Combine(Path.GetTempPath(), "tailscale-setup.exe");
@@ -543,28 +507,48 @@ public sealed partial class TunnelService : IDisposable
 
     private static string? FindTailscale()
     {
-        var candidates = new List<string>
-        {
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "tailscale.exe"),
-        };
+        var executableNames = OperatingSystem.IsWindows()
+            ? new[] { "tailscale.exe", "tailscale" }
+            : new[] { "tailscale" };
+        var candidates = new List<string>();
 
-        var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-        foreach (var dir in pathEnv.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var executableName in executableNames)
         {
-            candidates.Add(Path.Combine(dir, "tailscale.exe"));
+            candidates.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, executableName));
         }
 
-        candidates.Add(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            "Tailscale",
-            "tailscale.exe"));
+        var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        foreach (var dir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            foreach (var executableName in executableNames)
+            {
+                candidates.Add(Path.Combine(dir, executableName));
+            }
+        }
 
-        candidates.Add(Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            "Tailscale IPN",
-            "tailscale.exe"));
+        if (OperatingSystem.IsWindows())
+        {
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            candidates.Add(Path.Combine(programFiles, "Tailscale", "tailscale.exe"));
+            candidates.Add(Path.Combine(programFiles, "Tailscale IPN", "tailscale.exe"));
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            candidates.Add("/usr/local/bin/tailscale");
+            candidates.Add("/opt/homebrew/bin/tailscale");
+            candidates.Add("/Applications/Tailscale.app/Contents/MacOS/Tailscale");
+            candidates.Add("/Applications/Tailscale.app/Contents/MacOS/tailscale");
+        }
+        else
+        {
+            candidates.Add("/usr/local/bin/tailscale");
+            candidates.Add("/usr/bin/tailscale");
+        }
 
-        return candidates.FirstOrDefault(File.Exists);
+        return candidates
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.Ordinal)
+            .FirstOrDefault(File.Exists);
     }
 
     private static string NormalizeTsNetHost(string? value)
@@ -684,7 +668,6 @@ public sealed partial class TunnelService : IDisposable
             StartInfo = new ProcessStartInfo
             {
                 FileName = exe,
-                Arguments = arguments,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -693,6 +676,11 @@ public sealed partial class TunnelService : IDisposable
                 StandardErrorEncoding = Encoding.UTF8,
             },
         };
+
+        foreach (var argument in arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
 
         var stdout = new StringBuilder();
         var stderr = new StringBuilder();

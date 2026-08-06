@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PortableCodex.Desktop.ApprovalWindow"
+        Width="500"
+        Height="260"
+        CanResize="False"
+        Title="Approve tool request"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="26" Spacing="18">
+    <TextBlock Text="One action needs your approval" FontSize="20" FontWeight="SemiBold" />
+    <TextBlock Text="{Binding Summary}" TextWrapping="Wrap" />
+    <TextBlock Text="This request came through the authenticated relay and will run inside your trusted workspace." Foreground="#AFA8A0" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+      <Button Content="Deny" Classes="ghost" Click="OnDenyClick" />
+      <Button Content="Approve" Classes="primary" Click="OnApproveClick" />
+    </StackPanel>
+  </StackPanel>
+</Window>

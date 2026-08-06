@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>PortableCodex.Core</RootNamespace>
+    <AssemblyName>PortableCodex.Core</AssemblyName>
+    <DefineConstants>$(DefineConstants);PORTABLE_CORE</DefineConstants>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+
+    <Compile Include="..\..\native\PortableCodex.Native\Models\CompanionModels.cs" Link="Models\CompanionModels.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Models\ProtocolConstants.cs" Link="Models\ProtocolConstants.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Models\ToolModels.cs" Link="Models\ToolModels.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Utils\JsonDefaults.cs" Link="Utils\JsonDefaults.cs" />
+
+    <Compile Include="..\..\native\PortableCodex.Native\Services\CodexCliWorkspaceService.cs" Link="Services\CodexCliWorkspaceService.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\CredentialService.cs" Link="Services\CredentialService.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\DeviceBroker.cs" Link="Services\DeviceBroker.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\FileToolService.cs" Link="Services\FileToolService.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\FileToolService.CommandModels.cs" Link="Services\FileToolService.CommandModels.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\FileToolService.Commands.cs" Link="Services\FileToolService.Commands.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\FileToolService.FileOps.cs" Link="Services\FileToolService.FileOps.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\FileToolService.FileSystemMutations.cs" Link="Services\FileToolService.FileSystemMutations.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\FileToolService.PatchModels.cs" Link="Services\FileToolService.PatchModels.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\FileToolService.Patching.cs" Link="Services\FileToolService.Patching.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\FileToolService.Search.cs" Link="Services\FileToolService.Search.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\FileToolService.SharedHelpers.cs" Link="Services\FileToolService.SharedHelpers.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\LocalRelayServerService.cs" Link="Services\LocalRelayServerService.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\McpProtocolService.cs" Link="Services\McpProtocolService.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\PathPolicyService.cs" Link="Services\PathPolicyService.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\RelayClientService.cs" Link="Services\RelayClientService.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\RelayContentService.cs" Link="Services\RelayContentService.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\SettingsStore.cs" Link="Services\SettingsStore.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\SkillService.cs" Link="Services\SkillService.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\TunnelService.cs" Link="Services\TunnelService.cs" />
+    <Compile Include="..\..\native\PortableCodex.Native\Services\TailscaleStatusParser.cs" Link="Services\TailscaleStatusParser.cs" />
+
+    <Compile Include="Services\CompanionRuntime.cs" />
+    <Compile Include="Services\PlatformAbstractions.cs" />
+
+    <EmbeddedResource Include="..\..\..\..\docs\openapi.actions.min.json">
+      <LogicalName>PortableCodex_BundledOpenApi.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\..\..\docs\openapi.actions.yaml">
+      <LogicalName>PortableCodex_BundledOpenApi.yaml</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\..\..\docs\custom-gpt-instructions.md">
+      <LogicalName>PortableCodex_GptInstructions.md</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>

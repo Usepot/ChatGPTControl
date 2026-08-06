@@ -1,0 +1,75 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="PortableCodex.Desktop.App"
+             RequestedThemeVariant="Dark">
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Window">
+      <Setter Property="FontFamily" Value="Inter, Segoe UI, sans-serif" />
+      <Setter Property="Foreground" Value="#F5F2EC" />
+    </Style>
+    <Style Selector="TextBlock.title">
+      <Setter Property="FontSize" Value="27" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#FFF8EF" />
+    </Style>
+    <Style Selector="TextBlock.section-title">
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#FFF8EF" />
+    </Style>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="#AFA8A0" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.mono">
+      <Setter Property="FontFamily" Value="Cascadia Mono, SFMono-Regular, Consolas, monospace" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Foreground" Value="#D8D1C7" />
+    </Style>
+    <Style Selector="Border.surface">
+      <Setter Property="Background" Value="#171A22" />
+      <Setter Property="BorderBrush" Value="#2B2D35" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="12" />
+    </Style>
+    <Style Selector="Border.subtle-surface">
+      <Setter Property="Background" Value="#12141A" />
+      <Setter Property="BorderBrush" Value="#262831" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="10" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#E89A63" />
+      <Setter Property="Foreground" Value="#25170F" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="15,9" />
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="Button.secondary">
+      <Setter Property="Background" Value="#242833" />
+      <Setter Property="Foreground" Value="#F5F2EC" />
+      <Setter Property="Padding" Value="13,8" />
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="Button.ghost">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#D8D1C7" />
+      <Setter Property="Padding" Value="7,5" />
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="#101218" />
+      <Setter Property="BorderBrush" Value="#393B45" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="10,8" />
+      <Setter Property="CornerRadius" Value="7" />
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="#101218" />
+      <Setter Property="BorderBrush" Value="#393B45" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="8,6" />
+    </Style>
+  </Application.Styles>
+</Application>

@@ -1,15 +1,18 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
 using PortableCodex.Native.Models;
 using PortableCodex.Native.Utils;
+
+#if !PORTABLE_CORE
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Windows.Forms;
+#endif
 
 namespace PortableCodex.Native.Services;
 
@@ -135,6 +138,7 @@ public sealed partial class FileToolService
         };
     }
 
+#if !PORTABLE_CORE
     private async Task<ToolResponse> HandleScreenshotDesktopAsync(
         ToolRequest request,
         ToolExecutionContext context,
@@ -256,6 +260,7 @@ public sealed partial class FileToolService
 
         throw new InvalidOperationException("view_desktop screen must be primary, all, virtual, or a zero-based display index such as 0 or 1");
     }
+#endif
 
     private static int GetSearchThreadCount(ToolRequest request)
     {

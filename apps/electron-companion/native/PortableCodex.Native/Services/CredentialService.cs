@@ -62,6 +62,8 @@ public sealed partial class CredentialService
         settings.TrustedWorkspaces = overrides.TrustedWorkspaces ?? [];
         settings.CurrentWorkspace = overrides.CurrentWorkspace ?? string.Empty;
         settings.ImportCodexCliWorkspaces = overrides.ImportCodexCliWorkspaces;
+        settings.SkillRoots = overrides.SkillRoots ?? [];
+        settings.ImportCodexCliSkills = overrides.ImportCodexCliSkills;
         settings.RequireApprovalForWrites = overrides.RequireApprovalForWrites;
         settings.MultithreadedFileSearches = overrides.MultithreadedFileSearches;
         settings.IsDarkMode = overrides.IsDarkMode;

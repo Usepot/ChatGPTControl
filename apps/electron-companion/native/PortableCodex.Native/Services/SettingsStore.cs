@@ -11,9 +11,15 @@ public sealed class SettingsStore
     private readonly string _filePath;
     private readonly CredentialService _credentialService;
 
-    public SettingsStore(CredentialService credentialService)
+    public SettingsStore(CredentialService credentialService, string? filePath = null)
     {
         _credentialService = credentialService;
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            _filePath = filePath;
+            return;
+        }
+
         var root = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "PortableCodex");
@@ -62,6 +68,8 @@ public sealed class SettingsStore
                     TrustedWorkspaces = loadedSettings.TrustedWorkspaces ?? [],
                     CurrentWorkspace = loadedSettings.CurrentWorkspace ?? string.Empty,
                     ImportCodexCliWorkspaces = hasCodexImportSetting && loadedSettings.ImportCodexCliWorkspaces,
+                    SkillRoots = loadedSettings.SkillRoots ?? [],
+                    ImportCodexCliSkills = loadedSettings.ImportCodexCliSkills,
                     RequireApprovalForWrites = hasApprovalSetting
                         ? loadedSettings.RequireApprovalForWrites
                         : true,

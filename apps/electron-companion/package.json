@@ -1,18 +1,27 @@
 {
   "name": "@portable-codex/electron-companion",
   "version": "0.1.0",
-  "description": "Portable Codex native Windows companion (WPF/.NET 8)",
+  "description": "Portable Codex cross-platform companion with native Windows fallback and Avalonia desktop shell",
   "author": "OpenAI",
   "scripts": {
     "test": "node -e \"process.exit(0)\"",
-    "build": "npm run native:build",
-    "dev": "npm run native:run",
-    "native:restore": "dotnet restore native\\PortableCodex.Native.sln",
-    "native:build": "dotnet build native\\PortableCodex.Native.sln -c Release",
-    "native:run": "dotnet run --project native\\PortableCodex.Native\\PortableCodex.Native.csproj",
-    "native:publish": "dotnet publish native\\PortableCodex.Native\\PortableCodex.Native.csproj -c Release -r win-x64 -o release-native",
+    "test:core": "dotnet test core/PortableCodex.Core.Tests/PortableCodex.Core.Tests.csproj -c Release",
+    "build": "npm run core:build && npm run desktop:build",
+    "dev": "npm run desktop:run",
+    "dev:win": "npm run native:run",
+    "build:win": "npm run native:build",
+    "native:restore": "dotnet restore native/PortableCodex.Native.sln",
+    "native:build": "dotnet build native/PortableCodex.Native.sln -c Release",
+    "native:run": "dotnet run --project native/PortableCodex.Native/PortableCodex.Native.csproj",
+    "native:publish": "dotnet publish native/PortableCodex.Native/PortableCodex.Native.csproj -c Release -r win-x64 -o release-native",
+    "core:build": "dotnet build core/PortableCodex.Core/PortableCodex.Core.csproj -c Release",
+    "desktop:build": "dotnet build avalonia/PortableCodex.Desktop/PortableCodex.Desktop.csproj -c Release",
+    "desktop:run": "dotnet run --project avalonia/PortableCodex.Desktop/PortableCodex.Desktop.csproj",
+    "desktop:publish:win": "dotnet publish avalonia/PortableCodex.Desktop/PortableCodex.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o release-desktop-win",
+    "desktop:publish:mac": "dotnet publish avalonia/PortableCodex.Desktop/PortableCodex.Desktop.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -o release-desktop-mac-arm64",
+    "desktop:publish:mac:x64": "dotnet publish avalonia/PortableCodex.Desktop/PortableCodex.Desktop.csproj -c Release -r osx-x64 --self-contained true -p:PublishSingleFile=true -o release-desktop-mac-x64",
     "build:exe": "npm run native:publish",
     "dist:win": "npm run native:publish",
-    "start": "npm run native:run"
+    "start": "npm run desktop:run"
   }
 }

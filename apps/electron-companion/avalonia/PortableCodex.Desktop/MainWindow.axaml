@@ -1,0 +1,193 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="PortableCodex.Desktop.MainWindow"
+        Width="1120"
+        Height="760"
+        MinWidth="900"
+        MinHeight="620"
+        Title="Portable Codex"
+        Background="#0D0F14"
+        WindowStartupLocation="CenterScreen">
+  <Grid ColumnDefinitions="310,*">
+    <Border Grid.Column="0" Background="#13161D" BorderBrush="#242731" BorderThickness="0,0,1,0" Padding="26,30">
+      <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <StackPanel Grid.Row="0" Spacing="7">
+          <TextBlock Text="PORTABLE CODEX" FontSize="11" FontWeight="Bold" Foreground="#E89A63" LetterSpacing="1.5" />
+          <TextBlock Text="Local bridge" Classes="title" FontSize="25" />
+          <TextBlock Text="A calm place to configure the machine that ChatGPT can reach." Classes="muted" TextWrapping="Wrap" LineHeight="18" />
+        </StackPanel>
+
+        <Border Grid.Row="1" Classes="surface" Padding="16" Margin="0,30,0,0">
+          <StackPanel Spacing="14">
+            <TextBlock Text="Connection" Classes="section-title" />
+            <StackPanel Spacing="12">
+              <StackPanel Spacing="5">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Ellipse Width="8" Height="8" Fill="#77D19B" VerticalAlignment="Center" />
+                  <TextBlock Text="Local relay" FontWeight="SemiBold" />
+                </StackPanel>
+                <TextBlock Text="{Binding LocalRelayMessage}" Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+              <StackPanel Spacing="5">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Ellipse Width="8" Height="8" Fill="#E89A63" VerticalAlignment="Center" />
+                  <TextBlock Text="Relay" FontWeight="SemiBold" />
+                </StackPanel>
+                <TextBlock Text="{Binding RelayMessage}" Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+              <StackPanel Spacing="5">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Ellipse Width="8" Height="8" Fill="#B79BF7" VerticalAlignment="Center" />
+                  <TextBlock Text="Tailscale Funnel" FontWeight="SemiBold" />
+                </StackPanel>
+                <TextBlock Text="{Binding TunnelMessage}" Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="3" Spacing="6">
+          <TextBlock Text="Device" Classes="muted" />
+          <TextBlock Text="{Binding DeviceName}" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding DeviceId}" Classes="mono" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding DataDirectory}" Classes="muted" TextWrapping="Wrap" Margin="0,5,0,0" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+      <StackPanel Margin="34,30,42,42" Spacing="22">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Spacing="7">
+            <TextBlock Text="{Binding SetupHeadline}" Classes="title" />
+            <TextBlock Text="{Binding SetupMessage}" Classes="muted" FontSize="14" TextWrapping="Wrap" MaxWidth="720" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="secondary" Content="Save settings" Command="{Binding SaveCommand}" VerticalAlignment="Top" />
+        </Grid>
+
+        <Border Classes="surface" Padding="22">
+          <StackPanel Spacing="24">
+            <StackPanel Spacing="18">
+              <StackPanel Spacing="5">
+                <TextBlock Text="Relay endpoint" Classes="section-title" />
+                <TextBlock Text="The hosted relay receives authenticated requests and forwards them to this device." Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+              <TextBox Text="{Binding RelayUrl, Mode=TwoWay}" Watermark="https://your-relay.example.com" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="14">
+                <StackPanel Grid.Column="0" Spacing="5">
+                  <TextBlock Text="Write approvals" Classes="section-title" FontSize="13" />
+                  <TextBlock Text="Ask before commands and file changes. Keep this on while you are setting up." Classes="muted" TextWrapping="Wrap" />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" IsChecked="{Binding RequireApproval}" VerticalAlignment="Center" />
+              </Grid>
+              <TextBlock Text="{Binding Banner}" Foreground="#F4BC7B" TextWrapping="Wrap" IsVisible="{Binding HasBanner}" />
+            </StackPanel>
+
+            <StackPanel Spacing="16">
+              <StackPanel Spacing="5">
+                <TextBlock Text="Trusted workspaces" Classes="section-title" />
+                <TextBlock Text="Only these folders can be read or changed by incoming tool requests." Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <ComboBox Grid.Column="0" ItemsSource="{Binding Workspaces}" SelectedItem="{Binding CurrentWorkspace, Mode=TwoWay}" PlaceholderText="Choose a current workspace" />
+                <Button Grid.Column="1" Classes="primary" Content="Add folder" Command="{Binding AddWorkspaceCommand}" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding Workspaces}" IsVisible="{Binding HasWorkspaces}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,0,0,8">
+                      <TextBlock Grid.Column="0" Text="{Binding}" Classes="mono" TextWrapping="Wrap" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Classes="ghost" Content="Remove" Command="{Binding $parent[Window].DataContext.RemoveWorkspaceCommand}" CommandParameter="{Binding}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="No workspace is trusted yet. Add one to let the bridge do useful work." Classes="muted" IsVisible="{Binding HasNoWorkspaces}" />
+            </StackPanel>
+
+            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="14">
+              <StackPanel Grid.Row="0" Grid.Column="0" Spacing="5">
+                <TextBlock Text="Tailscale Funnel" Classes="section-title" />
+                <TextBlock Text="Expose the local relay over HTTPS when your hosted connector needs to reach this machine." Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+              <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Classes="secondary" Content="Connect" Command="{Binding ConnectTailscaleCommand}" />
+                <Button Classes="ghost" Content="Install" Command="{Binding InstallTailscaleCommand}" />
+                <Button Classes="ghost" Content="Stop" Command="{Binding StopTailscaleCommand}" />
+              </StackPanel>
+              <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding TunnelMessage}" Classes="mono" TextWrapping="Wrap" />
+              <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Text="If Tailscale needs a sign-in, system-extension approval, or Funnel approval, the companion will guide you to the next step." Classes="muted" TextWrapping="Wrap" />
+            </Grid>
+
+            <StackPanel Spacing="14">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Recent activity" Classes="section-title" />
+                  <TextBlock Text="Requests are quiet when the bridge is healthy. They appear here when ChatGPT uses a tool." Classes="muted" TextWrapping="Wrap" />
+                </StackPanel>
+                <TextBlock Grid.Column="1" Text="{Binding RelayState}" Classes="mono" VerticalAlignment="Center" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding Activity}" IsVisible="{Binding HasActivity}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,0,0,8">
+                      <StackPanel Grid.Column="0" Spacing="4">
+                        <TextBlock Text="{Binding ToolDisplay}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding Summary}" Classes="muted" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Text="{Binding StatusDisplay}" Classes="mono" VerticalAlignment="Center" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="No tool requests yet." Classes="muted" IsVisible="{Binding HasNoActivity}" />
+            </StackPanel>
+
+            <StackPanel Spacing="12">
+              <TextBlock Text="Pairing credentials" Classes="section-title" />
+              <TextBlock Text="Keep these private. They identify this companion to the relay." Classes="muted" />
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                <TextBlock Text="Device ID" Classes="muted" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding DeviceId}" Classes="mono" TextWrapping="Wrap" VerticalAlignment="Center" />
+                <Button Grid.Column="2" Classes="ghost" Content="Copy" Command="{Binding CopyDeviceIdCommand}" />
+              </Grid>
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                <TextBlock Text="Device token" Classes="muted" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding DeviceToken}" Classes="mono" TextWrapping="Wrap" VerticalAlignment="Center" />
+                <Button Grid.Column="2" Classes="ghost" Content="Copy" Command="{Binding CopyDeviceTokenCommand}" />
+              </Grid>
+            </StackPanel>
+
+            <StackPanel Spacing="14">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Available skills" Classes="section-title" />
+                  <TextBlock Text="Skills discovered from your Codex configuration are available to incoming requests." Classes="muted" TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1" Classes="ghost" Content="Refresh" Command="{Binding RefreshSkillsCommand}" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding Skills}" IsVisible="{Binding HasSkills}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="0,0,0,8">
+                      <TextBlock Text="{Binding Activation}" Foreground="#E89A63" FontWeight="SemiBold" />
+                      <TextBlock Grid.Column="1" Text="{Binding Description}" Classes="muted" TextWrapping="Wrap" />
+                      <TextBlock Grid.Column="2" Text="{Binding Path}" Classes="mono" TextWrapping="Wrap" MaxWidth="260" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="No skills discovered yet." Classes="muted" IsVisible="{Binding HasNoSkills}" />
+            </StackPanel>
+
+            <StackPanel Spacing="10" IsVisible="{Binding HasSelectedActivity}">
+              <TextBlock Text="Latest response" Classes="section-title" />
+              <TextBlock Text="The most recent tool result is kept here for a quick read-only review." Classes="muted" TextWrapping="Wrap" />
+              <TextBox Text="{Binding SelectedActivityDetail}" Classes="mono" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+  </Grid>
+</Window>

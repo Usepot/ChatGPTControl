@@ -1,14 +1,13 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
+#if !PORTABLE_CORE
 using System.Runtime.InteropServices;
+#endif
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
 using PortableCodex.Native.Models;
 using PortableCodex.Native.Utils;
 
@@ -49,6 +48,9 @@ public sealed partial class FileToolService
         private static bool TryParseDirectPowerShellCommand(string command, out IReadOnlyList<string> argv)
         {
             argv = Array.Empty<string>();
+#if PORTABLE_CORE
+            return false;
+#else
             if (!OperatingSystem.IsWindows())
             {
                 return false;
@@ -71,8 +73,10 @@ public sealed partial class FileToolService
 
             argv = parsed;
             return true;
+#endif
         }
 
+#if !PORTABLE_CORE
         private static IReadOnlyList<string> SplitWindowsCommandLine(string command)
         {
             var argvPtr = CommandLineToArgvW(command, out var argc);
@@ -105,6 +109,7 @@ public sealed partial class FileToolService
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern IntPtr LocalFree(IntPtr hMem);
+#endif
     }
 
     private sealed class ShellSession : IDisposable

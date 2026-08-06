@@ -7,7 +7,7 @@ Portable Codex lets a ChatGPT custom app, built with the Apps SDK/MCP connector 
 - `apps/hosted-relay`
   Public MCP endpoint (`/mcp`), REST API, and WebSocket broker. ChatGPT Apps call `/mcp`; legacy GPT Actions call the REST tool routes.
 - `apps/electron-companion`
-  Native Windows companion (WPF / .NET 8) that connects outbound to the relay, runs file tools locally, prompts for gated writes, and logs every tool call. The folder name is historical; the implementation is fully native.
+  Cross-platform companion: `core/PortableCodex.Core` contains the UI-independent .NET runtime, `avalonia/PortableCodex.Desktop` is the Windows/macOS shell, and `native/PortableCodex.Native` remains the Windows WPF fallback. The folder name is historical.
 - `packages/shared`
   Shared protocol types for tool requests, responses, logs, and relay messages.
 - `docs/openapi.yaml`
@@ -34,7 +34,7 @@ Install dependencies:
 npm install
 ```
 
-Build everything:
+Build the cross-platform core and Avalonia shell:
 
 ```powershell
 npm run build
@@ -46,19 +46,31 @@ Start the relay:
 npm run dev:relay
 ```
 
-Start the native companion:
+Start the cross-platform Avalonia companion:
 
 ```powershell
 npm run dev
 ```
 
-Same as `npm run start`. Legacy script names that still run the native app:
+Start the Windows WPF fallback explicitly:
+
+```powershell
+npm run dev:win
+```
+
+Build the WPF fallback explicitly on Windows:
+
+```powershell
+npm run build:win
+```
+
+`npm run dev:desktop` is the explicit equivalent. Legacy script names that still run the native app:
 
 ```powershell
 npm run electron:dev
 ```
 
-Build a standalone Windows `.exe` (self-contained, single-file x64):
+Build a standalone Windows `.exe` (self-contained, single-file x64) from the legacy WPF fallback:
 
 ```powershell
 npm run build:exe
@@ -69,6 +81,20 @@ After changing **`docs/openapi.yaml`**, run **`npm run docs:openapi`** first so 
 Same publish as `npm run dist:win`. Output:
 
 - `apps/electron-companion/release-native/PortableCodex.exe`
+
+Build the cross-platform shell:
+
+```bash
+npm run build:desktop
+```
+
+Run the .NET core tests (requires the .NET 8 SDK):
+
+```bash
+npm run test:core
+```
+
+Tagged releases use [`.github/workflows/companion-desktop.yml`](.github/workflows/companion-desktop.yml) to publish Windows x64/ARM64 and macOS Intel/Apple Silicon artifacts. Configure `WINDOWS_CERTIFICATE_BASE64`/`WINDOWS_CERTIFICATE_PASSWORD`, `MACOS_CERTIFICATE_BASE64`/`MACOS_CERTIFICATE_PASSWORD`/`MACOS_SIGNING_IDENTITY`, and `APPLE_ID`/`APPLE_TEAM_ID`/`APPLE_APP_PASSWORD` repository secrets for signed and notarized packages; without them, the workflow still produces unsigned test artifacts.
 
 ## Relay Configuration
 

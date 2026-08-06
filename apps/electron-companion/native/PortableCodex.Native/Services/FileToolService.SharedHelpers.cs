@@ -1,13 +1,10 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
 using PortableCodex.Native.Models;
 using PortableCodex.Native.Utils;
 
@@ -157,5 +154,10 @@ public sealed partial class FileToolService
                 Message = message,
             },
         };
+    }
+
+    private static ToolResponse UnsupportedPlatform(string requestId, string message)
+    {
+        return Error(requestId, "PLATFORM_CAPABILITY_UNAVAILABLE", message);
     }
 }

@@ -1,0 +1,125 @@
+name: Companion desktop artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: ${{ matrix.os }} / ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            archive: PortableCodex-win-x64.zip
+          - os: windows-latest
+            rid: win-arm64
+            archive: PortableCodex-win-arm64.zip
+          - os: macos-13
+            rid: osx-x64
+            archive: PortableCodex-mac-x64.dmg
+          - os: macos-14
+            rid: osx-arm64
+            archive: PortableCodex-mac-arm64.dmg
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish companion
+        shell: bash
+        run: >-
+          dotnet publish apps/electron-companion/avalonia/PortableCodex.Desktop/PortableCodex.Desktop.csproj
+          --configuration Release
+          --runtime ${{ matrix.rid }}
+          --self-contained true
+          -p:PublishSingleFile=true
+          -o "artifacts/publish/${{ matrix.rid }}"
+
+      - name: Sign Windows executable when signing secrets are configured
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $binary = "artifacts/publish/${{ matrix.rid }}/PortableCodex.Desktop.exe"
+          if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_BASE64)) {
+            Write-Host "Windows signing secrets are not configured; leaving the CI artifact unsigned."
+            exit 0
+          }
+          $certificatePath = Join-Path $env:RUNNER_TEMP "portable-codex-signing.pfx"
+          [IO.File]::WriteAllBytes($certificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+          & signtool sign /fd SHA256 /f $certificatePath /p $env:WINDOWS_CERTIFICATE_PASSWORD /tr http://timestamp.digicert.com /td SHA256 $binary
+
+      - name: Package Windows artifact
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path "artifacts/publish/${{ matrix.rid }}/*" -DestinationPath "artifacts/${{ matrix.archive }}"
+
+      - name: Create macOS app and DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          app_root="artifacts/PortableCodex.app"
+          mkdir -p "$app_root/Contents/MacOS" "$app_root/Contents/Resources"
+          cp -R "artifacts/publish/${{ matrix.rid }}/." "$app_root/Contents/MacOS/"
+          cat > "$app_root/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>CFBundleExecutable</key><string>PortableCodex.Desktop</string>
+            <key>CFBundleIdentifier</key><string>com.portablecodex.companion</string>
+            <key>CFBundleName</key><string>Portable Codex</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>0.1.0</string>
+            <key>CFBundleVersion</key><string>${GITHUB_SHA}</string>
+          </dict></plist>
+          PLIST
+
+          if [[ -n "$MACOS_CERTIFICATE_BASE64" && -n "$MACOS_SIGNING_IDENTITY" ]]; then
+            certificate_path="$RUNNER_TEMP/portable-codex-signing.p12"
+            keychain_path="$RUNNER_TEMP/portable-codex-signing.keychain-db"
+            echo "$MACOS_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+            security create-keychain -p runner "$keychain_path"
+            security unlock-keychain -p runner "$keychain_path"
+            security import "$certificate_path" -k "$keychain_path" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security list-keychains -d user -s "$keychain_path"
+            security set-key-partition-list -S apple-tool:,apple: -s -k runner "$keychain_path"
+            codesign --deep --force --options runtime --sign "$MACOS_SIGNING_IDENTITY" "$app_root"
+          else
+            echo "macOS signing secrets are not configured; leaving the CI app unsigned."
+          fi
+
+          hdiutil create -volname "Portable Codex" -srcfolder "$app_root" -ov -format UDZO -o "artifacts/${{ matrix.archive }}"
+
+          if [[ -n "$APPLE_ID" && -n "$APPLE_TEAM_ID" && -n "$APPLE_APP_PASSWORD" && -n "$MACOS_SIGNING_IDENTITY" ]]; then
+            xcrun notarytool submit "artifacts/${{ matrix.archive }}" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+          else
+            echo "Apple notarization secrets are not configured; leaving the CI DMG unnotarized."
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PortableCodex-${{ matrix.rid }}
+          path: artifacts/${{ matrix.archive }}

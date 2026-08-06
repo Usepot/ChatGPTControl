@@ -16,4 +16,9 @@ Thumbs.db
 apps/electron-companion/data/
 apps/electron-companion/native/**/bin/
 apps/electron-companion/native/**/obj/
+apps/electron-companion/core/**/bin/
+apps/electron-companion/core/**/obj/
+apps/electron-companion/avalonia/**/bin/
+apps/electron-companion/avalonia/**/obj/
 apps/electron-companion/release-native/
+apps/electron-companion/release-desktop-*/
