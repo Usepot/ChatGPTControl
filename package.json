@@ -19,6 +19,8 @@
     "build:win": "npm run build:win --workspace @portable-codex/electron-companion",
     "build:core": "npm run core:build --workspace @portable-codex/electron-companion",
     "build:desktop": "npm run desktop:build --workspace @portable-codex/electron-companion",
+    "app:mac": "node scripts/package-macos-app.mjs",
+    "open:mac": "npm run app:mac && open 'apps/electron-companion/release/Portable Codex.app'",
     "test:core": "npm run test:core --workspace @portable-codex/electron-companion",
     "dev:desktop": "npm run desktop:run --workspace @portable-codex/electron-companion",
     "predist:win": "npm run docs:openapi",

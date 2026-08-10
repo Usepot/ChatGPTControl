@@ -24,6 +24,7 @@ The companion now has a shared `net8.0` core and an Avalonia desktop shell for W
 - `npm run desktop:publish:win`
 - `npm run desktop:publish:mac`
 - `npm run desktop:publish:mac:x64`
+- `npm run app:mac` (from the repository root) builds a self-contained, double-clickable macOS app bundle
 - `npm run test:core`
 
 The Avalonia shell intentionally focuses on the always-on companion workflow: relay status, trusted workspaces, write approvals, activity, and Tailscale Funnel setup. Desktop capture/click and the embedded ChatGPT WebView remain Windows-only capabilities until their platform adapters are implemented.

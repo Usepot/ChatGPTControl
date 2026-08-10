@@ -52,6 +52,15 @@ Start the cross-platform Avalonia companion:
 npm run dev
 ```
 
+On macOS, build a self-contained, double-clickable app bundle (no Node, npm, or .NET required after it is built):
+
+```bash
+npm run app:mac
+open "apps/electron-companion/release/Portable Codex.app"
+```
+
+The resulting `Portable Codex.app` can be dragged into Applications and launched from Finder or Spotlight. `npm run open:mac` builds and opens it in one step.
+
 Start the Windows WPF fallback explicitly:
 
 ```powershell

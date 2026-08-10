@@ -22,3 +22,4 @@ apps/electron-companion/avalonia/**/bin/
 apps/electron-companion/avalonia/**/obj/
 apps/electron-companion/release-native/
 apps/electron-companion/release-desktop-*/
+apps/electron-companion/release/
